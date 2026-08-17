@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional, TypeAlias
+from typing import List, Optional, TypeAlias
+from decimal import Decimal
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -19,7 +20,7 @@ class Transaction(BaseModel):
     date: date
     description: str
 
-    amount: float = Field(gt=0)
+    amount: Decimal = Field(gt=0)
 
     transaction_type: TransactionType
     reference_number: str | None = None
@@ -32,4 +33,9 @@ class Transaction(BaseModel):
 # A batch is the validated list of transactions passed through the workflow.
 # Define this after Transaction so type-hint evaluation never receives a
 # forward reference from a different module's namespace.
-TransactionBatch: TypeAlias = list[Transaction]
+class TransactionBatch(BaseModel):
+    transactions: List[Transaction] = Field(default_factory=list)
+
+    @property
+    def total_count(self) -> int:
+        return len(self.transactions)

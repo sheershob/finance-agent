@@ -12,6 +12,8 @@ from decimal import Decimal
 
 from schemas.transaction import TransactionBatch
 from schemas.analysis import FinancialAnalysis
+from schemas.debt import Debt
+from schemas.goal import FinancialGoal, GoalAnalysis
 
 from tools.expense_calculator import ExpenseCalculator
 from tools.budget_calculator import BudgetCalculator
@@ -52,8 +54,8 @@ class FinancialAnalyzer:
     def analyze(
         self,
         transactions: TransactionBatch,
-        goals=None,
-        debts=None,
+        goals: list[FinancialGoal] | None = None,
+        debts: list[Debt] | None = None,
         emergency_fund: Decimal = Decimal("0"),
     ) -> FinancialAnalysis:
         """
@@ -82,34 +84,20 @@ class FinancialAnalyzer:
         goals = goals or []
         debts = debts or []
 
-        expense_summary = (
-            self.expense_calculator.calculate_summary(
-                transactions
-            )
-        )
+        expense_summary = self.expense_calculator.calculate_summary(transactions)
 
         monthly_income = expense_summary["income"]
         monthly_expenses = expense_summary["expenses"]
         monthly_surplus = expense_summary["surplus"]
         savings_rate = expense_summary["savings_rate"]
 
-        expense_breakdown = expense_summary[
-            "category_breakdown"
-        ]
-
-        top_categories = expense_summary[
-            "top_categories"
-        ]
+        expense_breakdown = expense_summary["category_breakdown"]
+        top_categories = expense_summary["top_categories"]
 
         budget = self.budget_calculator.generate_budget(
-            self._create_analysis_for_budget(
-                monthly_income=monthly_income,
-                monthly_expenses=monthly_expenses,
-                monthly_surplus=monthly_surplus,
-                savings_rate=savings_rate,
-                expense_breakdown=expense_breakdown,
-                top_categories=top_categories,
-            )
+            monthly_income=monthly_income,
+            monthly_surplus=monthly_surplus,
+            expense_breakdown=expense_breakdown,
         )
 
         goal_analysis = (
@@ -162,41 +150,9 @@ class FinancialAnalyzer:
             financial_health_score=financial_health_score,
         )
 
-    def _create_analysis_for_budget(
-        self,
-        monthly_income: Decimal,
-        monthly_expenses: Decimal,
-        monthly_surplus: Decimal,
-        savings_rate: Decimal,
-        expense_breakdown,
-        top_categories,
-    ):
-        """
-        Create the minimal FinancialAnalysis object required
-        by BudgetCalculator.
-
-        BudgetCalculator currently uses the expense-related
-        fields from FinancialAnalysis.
-        """
-
-        return FinancialAnalysis(
-            monthly_income=monthly_income,
-            monthly_expenses=monthly_expenses,
-            monthly_surplus=monthly_surplus,
-            savings_rate=savings_rate,
-            expense_breakdown=expense_breakdown,
-            top_categories=top_categories,
-            budget=None,
-            goal_analysis=[],
-            debt_analysis=[],
-            debt_to_income_ratio=Decimal("0"),
-            emergency_fund_months=Decimal("0"),
-            financial_health_score=0,
-        )
-
     def _calculate_debt_to_income_ratio(
         self,
-        debts,
+        debts: list[Debt],
         monthly_income: Decimal,
     ) -> Decimal:
 
@@ -236,7 +192,7 @@ class FinancialAnalyzer:
         savings_rate: Decimal,
         debt_to_income_ratio: Decimal,
         emergency_fund_months: Decimal,
-        goal_analysis,
+        goal_analysis: list[GoalAnalysis],
     ) -> int:
         """
         Calculate a simple deterministic financial-health score.

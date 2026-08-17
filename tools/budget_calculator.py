@@ -1,17 +1,16 @@
 """
-Generates a recommended monthly budget based on
-historical spending and financial analysis.
+Generates a recommended monthly budget from calculated spending metrics.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from schemas.analysis import FinancialAnalysis
 from schemas.budget import (
     BudgetAllocation,
     MonthlyBudget,
 )
+from schemas.common import CategoryAmount
 from schemas.enums import ExpenseCategory
 
 
@@ -23,13 +22,19 @@ class BudgetCalculator:
     DEFAULT_INVESTMENT_RATIO = Decimal("0.60")
     DEFAULT_EMERGENCY_RATIO = Decimal("0.20")
 
-    def generate_budget(self,analysis: FinancialAnalysis) -> MonthlyBudget:
+    def generate_budget(
+        self,
+        monthly_income: Decimal,
+        monthly_surplus: Decimal,
+        expense_breakdown: list[CategoryAmount],
+    ) -> MonthlyBudget:
+        """Generate a budget from the expense summary produced by ExpenseCalculator."""
 
         allocations = self._calculate_allocations(
-            analysis.expense_breakdown
+            expense_breakdown
         )
 
-        expected_savings = analysis.monthly_surplus
+        expected_savings = max(monthly_surplus, Decimal("0"))
 
         recommended_investment = (
             self._calculate_recommended_investment(
@@ -52,12 +57,12 @@ class BudgetCalculator:
         )
 
         total_budget = sum(
-            allocation.recommended_amount
-            for allocation in allocations
+            (allocation.recommended_amount for allocation in allocations),
+            Decimal("0"),
         )
 
         return MonthlyBudget(
-            monthly_income=analysis.monthly_income,
+            monthly_income=monthly_income,
             total_budget=total_budget,
             allocations=allocations,
             expected_savings=expected_savings,
@@ -66,7 +71,10 @@ class BudgetCalculator:
             remaining_balance=remaining_balance,
         )
 
-    def _calculate_allocations(self,breakdown) -> list[BudgetAllocation]:
+    def _calculate_allocations(
+        self,
+        breakdown: list[CategoryAmount],
+    ) -> list[BudgetAllocation]:
         """
         Generate recommended allocations based on
         historical spending.

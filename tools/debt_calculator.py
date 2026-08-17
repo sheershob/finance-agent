@@ -185,8 +185,8 @@ class DebtCalculator:
     ) -> Decimal:
 
         total = sum(
-            debt.outstanding_principal
-            for debt in debts
+            (debt.outstanding_principal for debt in debts),
+            Decimal("0"),
         )
 
         return self._round(total)
@@ -197,8 +197,8 @@ class DebtCalculator:
     ) -> Decimal:
 
         total = sum(
-            debt.monthly_emi
-            for debt in debts
+            (debt.monthly_emi for debt in debts),
+            Decimal("0"),
         )
 
         return self._round(total)
@@ -209,8 +209,8 @@ class DebtCalculator:
     ) -> Decimal:
 
         total = sum(
-            self.remaining_interest(debt)
-            for debt in debts
+            (self.remaining_interest(debt) for debt in debts),
+            Decimal("0"),
         )
 
         return self._round(total)

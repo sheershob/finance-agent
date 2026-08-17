@@ -21,6 +21,7 @@ from schemas.transaction import (
     Transaction,
     TransactionBatch,
 )
+from tools.validators import ValidationResult
 
 
 class TransactionNormalizer:
@@ -47,17 +48,22 @@ class TransactionNormalizer:
 
     }
 
-    def normalize(
-        self,
-        batch: TransactionBatch,
-    ) -> TransactionBatch:
+    def normalize(self, batch: TransactionBatch | ValidationResult) -> TransactionBatch:
         """
         Normalize an entire transaction batch.
+
+        Accept either a TransactionBatch or the ValidationResult returned by the
+        validator, since both are used across the analysis pipeline.
         """
+
+        if isinstance(batch, ValidationResult):
+            source_transactions = batch.transactions
+        else:
+            source_transactions = batch.transactions
 
         normalized_transactions = []
 
-        for transaction in batch.transactions:
+        for transaction in source_transactions:
 
             normalized_transactions.append(
                 self.normalize_transaction(
@@ -65,14 +71,9 @@ class TransactionNormalizer:
                 )
             )
 
-        return TransactionBatch(
-            transactions=normalized_transactions
-        )
+        return TransactionBatch(transactions=normalized_transactions)
 
-    def normalize_transaction(
-        self,
-        transaction: Transaction,
-    ) -> Transaction:
+    def normalize_transaction(self, transaction: Transaction) -> Transaction:
         """
         Normalize a single transaction.
         """
@@ -93,10 +94,7 @@ class TransactionNormalizer:
 
         return transaction
 
-    def _normalize_text(
-        self,
-        text: str,
-    ) -> str:
+    def _normalize_text(self,text: str) -> str:
         """
         Remove extra spaces and standardize capitalization.
         """
@@ -111,10 +109,7 @@ class TransactionNormalizer:
 
         return text.title()
 
-    def _normalize_merchant(
-        self,
-        merchant: str | None,
-    ) -> str | None:
+    def _normalize_merchant(self,merchant: str | None) -> str | None:
 
         if merchant is None:
 
@@ -136,13 +131,8 @@ class TransactionNormalizer:
 
         return merchant.title()
 
-    def _normalize_amount(
-        self,
-        amount: Decimal,
-    ) -> Decimal:
-        """
-        Round to two decimal places.
-        """
+    def _normalize_amount(self, amount: Decimal) -> Decimal:
+        amount = Decimal(str(amount))
 
         return amount.quantize(
             Decimal("0.01"),

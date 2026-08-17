@@ -19,29 +19,17 @@ class FinanceAgentState(BaseModel):
     """
 
     user_query: str | None = None
-
     profile: FinancialProfile | None = None
-
     transactions: TransactionBatch | None = None
-
     analysis: FinancialAnalysis | None = None
-
     budget: MonthlyBudget | None = None
-
     goals: list[FinancialGoal] = Field(default_factory=list)
-
     debts: list[Debt] = Field(default_factory=list)
-
     debt_analysis: list[DebtAnalysis] = Field(default_factory=list)
-
     alerts: list[FinancialAlert] = Field(default_factory=list)
-
     recommendations: list[Recommendation] = Field(default_factory=list)
-
     report: MonthlyReport | None = None
-
     final_response: str | None = None
-
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     """

@@ -41,6 +41,10 @@ class ValidationError:
 class ValidationResult:
     """
     Output returned after validating a TransactionBatch.
+
+    This object intentionally exposes the same ``transactions`` attribute that
+    the downstream pipeline expects from a TransactionBatch, while preserving the
+    additional validation metadata.
     """
 
     valid_transactions: List[Transaction]
@@ -48,33 +52,33 @@ class ValidationResult:
     errors: List[ValidationError]
 
     @property
+    def transactions(self) -> List[Transaction]:
+        return self.valid_transactions
+
+    @property
     def is_valid(self) -> bool:
         return len(self.errors) == 0
+
+    def as_batch(self) -> TransactionBatch:
+        return TransactionBatch(transactions=self.valid_transactions)
 
 
 # ---------------------------------------------------------------------
 # Validator
 # ---------------------------------------------------------------------
 
-
 class TransactionValidator:
     """
     Performs validation on Transaction objects.
     """
 
-    def __init__(
-        self,
-        allow_zero_amount: bool = False,
-    ) -> None:
+    def __init__(self, allow_zero_amount: bool = False) -> None:
 
         self.allow_zero_amount = allow_zero_amount
 
     # -------------------------------------------------------------
 
-    def validate_batch(
-        self,
-        batch: TransactionBatch,
-    ) -> ValidationResult:
+    def validate_batch(self,batch: TransactionBatch) -> ValidationResult:
         """
         Validate an entire batch of transactions.
         """
@@ -121,17 +125,9 @@ class TransactionValidator:
 
     # -------------------------------------------------------------
 
-    def validate_transaction(
-        self,
-        transaction: Transaction,
-        row_number: int,
-    ) -> List[ValidationError]:
+    def validate_transaction(self, transaction: Transaction, row_number: int) -> List[ValidationError]:
 
         errors: List[ValidationError] = []
-
-        # ----------------------------
-        # Description
-        # ----------------------------
 
         if not transaction.description.strip():
 
@@ -142,10 +138,6 @@ class TransactionValidator:
                     message="Description cannot be empty.",
                 )
             )
-
-        # ----------------------------
-        # Amount
-        # ----------------------------
 
         if self.allow_zero_amount:
 
@@ -171,10 +163,6 @@ class TransactionValidator:
                     )
                 )
 
-        # ----------------------------
-        # Date
-        # ----------------------------
-
         if transaction.date > date.today():
 
             errors.append(
@@ -184,10 +172,6 @@ class TransactionValidator:
                     message="Transaction date cannot be in the future.",
                 )
             )
-
-        # ----------------------------
-        # Merchant
-        # ----------------------------
 
         if (
             transaction.merchant is not None
@@ -201,10 +185,6 @@ class TransactionValidator:
                     message="Merchant cannot be blank.",
                 )
             )
-
-        # ----------------------------
-        # Transaction Type
-        # ----------------------------
 
         if transaction.transaction_type not in (
             TransactionType.CREDIT,
@@ -223,12 +203,7 @@ class TransactionValidator:
 
     # -------------------------------------------------------------
 
-    def _check_duplicate(
-        self,
-        transaction: Transaction,
-        row_number: int,
-        seen: Set[Tuple],
-    ) -> ValidationError | None:
+    def _check_duplicate(self,transaction: Transaction, row_number: int, seen: Set[Tuple]) -> ValidationError | None:
         """
         Detect duplicate transactions.
 

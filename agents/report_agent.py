@@ -14,11 +14,7 @@ class ReportAgent:
     Generates a comprehensive financial report
     """
 
-    def __init__(
-        self,
-        model: str = "qwen2.5:7b",
-        temperature: float = 0.0,
-    ):
+    def __init__(self ,model: str = "gemma4:31b-cloud", temperature: float = 0.0):
 
         self.llm = LLMManager(
             model=model,
@@ -43,11 +39,7 @@ class ReportAgent:
 
         return self.generate(analysis)
 
-    def save_report(
-        self,
-        report: str,
-        output_path: str,
-    ) -> None:
+    def save_report(self, report: str, output_path: str) -> None:
         """
         Save the generated report to disk.
         """

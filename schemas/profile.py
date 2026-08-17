@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -17,27 +18,27 @@ class FinancialProfile(BaseModel):
         validate_assignment=True
     )
 
-    monthly_income: float = Field(
+    monthly_income: Decimal = Field(
         ge=0,
         description="Net monthly income."
     )
 
-    fixed_expenses: float = Field(
+    fixed_expenses: Decimal = Field(
         ge=0,
         description="Recurring monthly expenses."
     )
 
-    variable_expenses: float = Field(
+    variable_expenses: Decimal = Field(
         ge=0,
         description="Average monthly variable expenses."
     )
 
-    existing_savings: float = Field(
+    existing_savings: Decimal = Field(
         ge=0,
         description="Current savings."
     )
 
-    monthly_investment: float = Field(
+    monthly_investment: Decimal = Field(
         ge=0,
         description="Current monthly investment."
     )

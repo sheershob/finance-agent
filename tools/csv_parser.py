@@ -2,9 +2,9 @@
 Reads a CSV file and converts it into a validated
 TransactionBatch object.
 
-Expected CSV format
+Expected CSV format:
 
-Date,Description,Amount,Type
+date,description,amount,type
 01-08-2026,Salary,150000,Credit
 02-08-2026,Rent,25000,Debit
 03-08-2026,Amazon,4500,Debit
@@ -35,10 +35,10 @@ class CSVParser:
     """
 
     REQUIRED_COLUMNS = {
-        "Date",
-        "Description",
-        "Amount",
-        "Type",
+        "date",
+        "description",
+        "amount",
+        "type",
     }
 
     DATE_FORMATS = (
@@ -48,12 +48,7 @@ class CSVParser:
         "%d-%m-%y",
     )
 
-    # -------------------------------------------------------------
-
-    def parse(
-        self,
-        file_path: str | Path,
-    ) -> TransactionBatch:
+    def parse(self,file_path: str | Path) -> TransactionBatch:
         """
         Parse a CSV file into a TransactionBatch.
 
@@ -73,6 +68,14 @@ class CSVParser:
 
         dataframe = pd.read_csv(file_path)
 
+        print("CSV columns:", list(dataframe.columns), flush=True)
+
+        dataframe.columns = (
+            dataframe.columns
+            .str.strip()
+            .str.lower()
+        )
+
         self._validate_columns(dataframe)
 
         transactions = []
@@ -80,29 +83,27 @@ class CSVParser:
         for _, row in dataframe.iterrows():
 
             transaction = Transaction(
-                date=self._parse_date(row["Date"]),
-                description=str(row["Description"]).strip(),
-                amount=self._parse_amount(row["Amount"]),
+                date=self._parse_date(row["date"]),
+                description=str(row["description"]).strip(),
+                amount=self._parse_amount(row["amount"]),
                 transaction_type=self._parse_transaction_type(
-                    row["Type"]
+                    row["type"]
                 ),
                 category=ExpenseCategory.OTHER,
-                merchant=str(row["Description"]).strip(),
+                merchant=self._optional_text(
+                    row["merchant"] if "merchant" in dataframe.columns else None
+                ),
+                notes=self._optional_text(
+                    row["notes"] if "notes" in dataframe.columns else None
+                ),
                 source_file=file_path.name,
             )
 
             transactions.append(transaction)
 
-        return TransactionBatch(
-            transactions=transactions
-        )
+        return TransactionBatch(transactions=transactions)
 
-    # -------------------------------------------------------------
-
-    def _validate_columns(
-        self,
-        dataframe: pd.DataFrame,
-    ) -> None:
+    def _validate_columns(self,dataframe: pd.DataFrame) -> None:
 
         columns = set(dataframe.columns)
 
@@ -113,13 +114,8 @@ class CSVParser:
             raise ValueError(
                 f"Missing required columns: {missing}"
             )
-
-    # -------------------------------------------------------------
-
-    def _parse_date(
-        self,
-        value: str,
-    ):
+        
+    def _parse_date(self,value: str):
 
         value = str(value).strip()
 
@@ -138,12 +134,7 @@ class CSVParser:
             f"Unsupported date format: {value}"
         )
 
-    # -------------------------------------------------------------
-
-    def _parse_amount(
-        self,
-        value,
-    ) -> Decimal:
+    def _parse_amount(self,value) -> Decimal:
 
         if pd.isna(value):
             raise ValueError("Amount cannot be empty.")
@@ -158,12 +149,7 @@ class CSVParser:
 
         return Decimal(value)
 
-    # -------------------------------------------------------------
-
-    def _parse_transaction_type(
-        self,
-        value,
-    ) -> TransactionType:
+    def _parse_transaction_type(self,value) -> TransactionType:
 
         value = str(value).strip().lower()
 
@@ -172,6 +158,7 @@ class CSVParser:
             "credit": TransactionType.CREDIT,
             "cr": TransactionType.CREDIT,
             "deposit": TransactionType.CREDIT,
+            "income": TransactionType.CREDIT,
             "debit": TransactionType.DEBIT,
             "dr": TransactionType.DEBIT,
             "withdrawal": TransactionType.DEBIT,
@@ -184,3 +171,11 @@ class CSVParser:
             )
 
         return mapping[value]
+
+    def _optional_text(self, value) -> str | None:
+        """Return optional CSV text without converting missing values to 'nan'."""
+        if value is None or pd.isna(value):
+            return None
+
+        text = str(value).strip()
+        return text or None

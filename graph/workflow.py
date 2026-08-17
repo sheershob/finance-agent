@@ -9,7 +9,17 @@ from graph.nodes import (
     analyze_finances,
     generate_recommendations,
     generate_report,
+    handle_error,
 )
+
+
+def route_after_analysis(state: FinancialState) -> str:
+    """
+    Stop the workflow when financial analysis fails; otherwise continue.
+    """
+    if state.get("current_step") == "financial_analysis_failed":
+        return "handle_error"
+    return "generate_recommendations"
 
 
 def build_workflow():
@@ -34,14 +44,19 @@ def build_workflow():
         generate_report,
     )
 
+    graph.add_node(
+        "handle_error",
+        handle_error,
+    )
+
     graph.add_edge(
         START,
         "analyze_finances",
     )
 
-    graph.add_edge(
+    graph.add_conditional_edges(
         "analyze_finances",
-        "generate_recommendations",
+        route_after_analysis,
     )
 
     graph.add_edge(
@@ -51,6 +66,11 @@ def build_workflow():
 
     graph.add_edge(
         "generate_report",
+        END,
+    )
+
+    graph.add_edge(
+        "handle_error",
         END,
     )
 

@@ -14,7 +14,7 @@ class BudgetAllocation(BaseModel):
 
     category: ExpenseCategory
 
-    recommended_amount: float = Field(
+    recommended_amount: Decimal = Field(
         ge=0
     )
 

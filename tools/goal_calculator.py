@@ -132,8 +132,8 @@ class GoalCalculator:
 
         return self._round(
             sum(
-                goal.target_amount
-                for goal in goals
+                (goal.target_amount for goal in goals),
+                Decimal("0"),
             )
         )
 
@@ -144,8 +144,8 @@ class GoalCalculator:
 
         return self._round(
             sum(
-                goal.current_amount
-                for goal in goals
+                (goal.current_amount for goal in goals),
+                Decimal("0"),
             )
         )
 

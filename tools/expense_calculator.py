@@ -18,16 +18,12 @@ from schemas.enums import (
 )
 from schemas.common import CategoryAmount
 
-
 class ExpenseCalculator:
 
     """
     Performs expense calculations.
     """
-    def total_income(
-        self,
-        batch: TransactionBatch,
-    ) -> Decimal:
+    def total_income(self, batch: TransactionBatch) -> Decimal:
 
         income = Decimal("0")
 
@@ -35,14 +31,11 @@ class ExpenseCalculator:
 
             if tx.transaction_type == TransactionType.CREDIT:
 
-                income += tx.amount
+                income += Decimal(str(tx.amount))
 
         return income
     
-    def total_expenses(
-        self,
-        batch: TransactionBatch,
-    ) -> Decimal:
+    def total_expenses(self, batch: TransactionBatch) -> Decimal:
 
         expense = Decimal("0")
 
@@ -50,24 +43,18 @@ class ExpenseCalculator:
 
             if tx.transaction_type == TransactionType.DEBIT:
 
-                expense += tx.amount
+                expense += Decimal(str(tx.amount))
 
         return expense
 
-    def monthly_surplus(
-        self,
-        batch: TransactionBatch,
-    ) -> Decimal:
+    def monthly_surplus(self, batch: TransactionBatch) -> Decimal:
 
         return (
             self.total_income(batch)
             - self.total_expenses(batch)
         )
 
-    def savings_rate(
-        self,
-        batch: TransactionBatch,
-    ) -> Decimal:
+    def savings_rate(self, batch: TransactionBatch) -> Decimal:
 
         income = self.total_income(batch)
 
@@ -94,7 +81,7 @@ class ExpenseCalculator:
 
             if tx.transaction_type == TransactionType.DEBIT:
 
-                categories[tx.category] += tx.amount
+                categories[tx.category] += Decimal(str(tx.amount))
 
         breakdown = []
 
@@ -153,7 +140,7 @@ class ExpenseCalculator:
 
         total = sum(
 
-            tx.amount
+            Decimal(str(tx.amount))
 
             for tx in expenses
 
@@ -175,22 +162,9 @@ class ExpenseCalculator:
 
             return Decimal("0")
 
-        return (
+        return (total / Decimal(unique_days)).quantize(Decimal("0.01"))
 
-            total
-
-            / Decimal(unique_days)
-
-        ).quantize(
-
-            Decimal("0.01")
-
-        )
-
-    def monthly_spending(
-        self,
-        batch: TransactionBatch,
-    ) -> dict[str, Decimal]:
+    def monthly_spending(self, batch: TransactionBatch) -> dict[str, Decimal]:
 
         monthly = defaultdict(Decimal)
 
@@ -200,16 +174,13 @@ class ExpenseCalculator:
 
                 month = tx.date.strftime("%Y-%m")
 
-                monthly[month] += tx.amount
+                monthly[month] += Decimal(str(tx.amount))
 
         return dict(monthly)
 
     # ---------------------------------------------------------
 
-    def calculate_summary(
-        self,
-        batch: TransactionBatch,
-    ) -> dict:
+    def calculate_summary(self, batch: TransactionBatch) -> dict:
 
         return {
 
@@ -228,5 +199,4 @@ class ExpenseCalculator:
             "daily_average": self.daily_average_expense(batch),
 
             "monthly_spending": self.monthly_spending(batch),
-
         }

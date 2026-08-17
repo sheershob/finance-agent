@@ -1,4 +1,5 @@
 import streamlit as st
+import tempfile
 
 from graph.workflow import build_workflow
 
@@ -6,11 +7,6 @@ from tools.csv_parser import CSVParser
 from tools.validators import TransactionValidator
 from tools.transaction_normalizer import TransactionNormalizer
 
-csv_parser = CSVParser()
-validator = TransactionValidator()
-normalizer = TransactionNormalizer()
-
-workflow = build_workflow()
 
 st.set_page_config(
     page_title="AI Financial Planner",
@@ -18,7 +14,22 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("💰 AI Financial Planning Assistant")
+@st.cache_resource
+def get_workflow():
+    print("Building LangGraph workflow...", flush=True)
+    workflow = build_workflow()
+    print("LangGraph workflow built.", flush=True)
+    return workflow
+
+csv_parser = CSVParser()
+validator = TransactionValidator()
+normalizer = TransactionNormalizer()
+
+workflow = get_workflow()
+
+
+st.title("AI Financial Planning Assistant")
+
 st.markdown(
     "Upload your transaction history and receive an AI-powered financial analysis."
 )
@@ -35,7 +46,7 @@ with st.sidebar:
             "llama3.1:8b",
             "qwen3:8b",
             "gemma4:31b-cloud",
-            "phi3:mini",
+            "qwen3.5:cloud",
         ],
     )
 
@@ -60,21 +71,44 @@ if uploaded_file is None:
     st.stop()
 
 st.success("CSV uploaded successfully!")
+print("CSV uploaded:", uploaded_file.name, flush=True)
+# st.write("DEBUG: app reached button")
 
 # Placeholder
 
 if analyze:
+    # st.write("DEBUG: Analyze button clicked")
+    print("Analyze button clicked", flush=True)
+    st.subheader("Analysis Progress")
+
+    progress_box = st.empty()
 
     with st.spinner("Analyzing finances..."):
 
-        # Parse CSV
-        transactions = csv_parser.parse(uploaded_file)
+        progress_box.info("1/6 — Parsing CSV...")
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".csv",
+        ) as temp_file:
 
-        # Validate
-        transactions = validator.validate(transactions)
+            temp_file.write(uploaded_file.getbuffer())
 
-        # Normalize
-        transactions = normalizer.normalize(transactions)
+            temp_file_path = temp_file.name
+
+        transactions = csv_parser.parse(temp_file_path)
+        print("[1/6] CSV parsing complete", flush=True)
+
+        progress_box.info("2/6 — Validating transactions...")
+        validation_result = validator.validate_batch(transactions)
+        transactions = validation_result.as_batch()
+        print("[2/6] Validation complete", flush=True)
+
+        progress_box.info("3/6 — Normalizing transactions...")
+        # transactions = normalizer.normalize(transactions)
+        transactions = normalizer.normalize(validation_result)
+        print("[3/6] Normalization complete", flush=True)
+
+        progress_box.info("4/6 — Running financial analysis...")
 
         state = {
             "transactions": transactions,
@@ -83,76 +117,32 @@ if analyze:
             "errors": [],
         }
 
+        print("[4/6] Starting LangGraph...", flush=True)
+
         result = workflow.invoke(state)
+        print("[DEBUG] Final workflow state keys:", list(result.keys()), flush=True)
 
-        analysis = result["financial_analysis"]
-        recommendations = result["recommendations"]
-        report = result["report"]
+        print("[4/6] LangGraph completed", flush=True)
 
-        st.subheader("Financial Summary")
+        progress_box.info("5/6 — Preparing recommendations...")
 
-        # st.metric("Income", "₹0")
-        # st.metric("Expenses", "₹0")
-        # st.metric("Savings", "₹0")
-        # st.metric("Health Score", "0/100")
+        analysis = result.get("financial_analysis")
+        recommendations = result.get("recommendations")
+        report = result.get("report")
 
-        col1, col2 = st.columns(2)
+        if analysis is None:
+            errors = result.get("errors", [])
+            progress_box.error("Analysis failed before recommendations could be generated.")
+            if errors:
+                st.error("Workflow errors: " + "; ".join(errors))
+            print("[analysis failed] Result keys:", list(result.keys()), flush=True)
+            st.stop()
 
-        with col1:
-            st.metric(
-                "Monthly Income",
-                f"₹{analysis.monthly_income}"
-            )
+        progress_box.info("6/6 — Preparing report...")
 
-            st.metric(
-                "Monthly Expenses",
-                f"₹{analysis.monthly_expenses}"
-            )
+        if report is None:
+            progress_box.warning("Analysis finished, but the report was not generated.")
 
-        with col2:
-            st.metric(
-                "Monthly Savings",
-                f"₹{analysis.monthly_surplus}"
-            )
+        print("[6/6] Complete", flush=True)
 
-            st.metric(
-                "Health Score",
-                f"{analysis.financial_health_score}/100"
-            )
-
-        st.divider()
-
-        st.subheader("Recommendations")
-
-        for recommendation in recommendations:
-            st.success(recommendation)
-
-        st.divider()
-
-        st.subheader("Charts")
-
-        st.markdown(report)
-
-        st.download_button(
-            "Download Report",
-            report,
-            file_name="financial_report.md",
-        )
-
-        st.divider()
-
-        st.subheader("Financial Report")
-
-        st.info(
-            "Generated report will appear here."
-        )
-
-        st.subheader("Debt Analysis")
-
-        for debt in analysis.debt_analysis:
-            st.write(debt)
-
-        st.subheader("Goal Analysis")
-
-        for goal in analysis.goal_analysis:
-            st.write(goal)
+    progress_box.success("Analysis complete!")
