@@ -14,7 +14,7 @@ class RecommendationAgent:
     Generates personalized financial recommendations using an Ollama LLM.
     """
 
-    def __init__(self,model: str = "gemma4:31b-cloud",temperature: float = 0.0):
+    def __init__(self, model: str | None = None, temperature: float = 0.0):
 
         self.llm = LLMManager(
             model=model,

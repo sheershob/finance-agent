@@ -3,6 +3,8 @@ LLM-powered financial report generator.
 """
 
 from __future__ import annotations
+from pathlib import Path
+import time
 
 from agents.llm import LLMManager
 from prompts.report import build_report_prompt
@@ -14,12 +16,13 @@ class ReportAgent:
     Generates a comprehensive financial report
     """
 
-    def __init__(self ,model: str = "gemma4:31b-cloud", temperature: float = 0.0):
+    def __init__(self, model: str | None = None, temperature: float = 0.0):
 
         self.llm = LLMManager(
             model=model,
             temperature=temperature,
         )
+        self.last_generation_seconds: float | None = None
 
     def generate(self, analysis: FinancialAnalysis) -> str:
         """
@@ -30,7 +33,11 @@ class ReportAgent:
             analysis
         )
 
-        return self.llm.invoke(prompt)
+        start_time = time.perf_counter()
+        report = self.llm.invoke(prompt)
+        self.last_generation_seconds = time.perf_counter() - start_time
+
+        return report
 
     def generate_markdown(self, analysis: FinancialAnalysis) -> str:
         """
@@ -39,15 +46,23 @@ class ReportAgent:
 
         return self.generate(analysis)
 
-    def save_report(self, report: str, output_path: str) -> None:
+    def save_report(self, report: str, output_path: str = "reports/financial_report.md") -> str:
         """
-        Save the generated report to disk.
+        Save the generated Markdown report to disk.
+
+        Returns the path of the saved report.
         """
 
-        with open(
-            output_path,
-            "w",
+        output_file = Path(output_path)
+
+        output_file.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        output_file.write_text(
+            report,
             encoding="utf-8",
-        ) as file:
+        )
 
-            file.write(report)
+        return str(output_file)

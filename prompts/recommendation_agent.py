@@ -29,6 +29,9 @@ Do NOT invent financial information.
 
 Do NOT change any of the numerical values.
 
+Do NOT include any calendar dates, date estimates, or date references in your response.
+If timing is necessary, express it only as a relative duration in months.
+
 Financial Summary
 
 Monthly Income:
@@ -89,4 +92,5 @@ Return ONLY bullet points.
 Do not use markdown headings.
 
 Do not repeat the financial summary.
+Do not include dates.
 """.strip()

@@ -49,12 +49,15 @@ class FinancialState(TypedDict, total=False):
     debt_analysis: list[DebtAnalysis]
 
     emergency_fund: Decimal
+    llm_model: str
 
     # Agent-generated recommendations
     recommendations: list[str]
 
     # Final generated report
     report: str
+    report_path: str
+    report_generation_seconds: float
 
     # Workflow information
     current_step: str

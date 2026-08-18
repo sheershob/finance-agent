@@ -22,8 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 financial_analyzer = FinancialAnalyzer()
-recommendation_agent = RecommendationAgent()
-report_agent = ReportAgent()
 
 def analyze_finances(state: FinancialState) -> FinancialState:
     """
@@ -89,6 +87,7 @@ def generate_recommendations(state: FinancialState) -> FinancialState:
             "current_step": "recommendations_skipped",
         }
 
+    recommendation_agent = RecommendationAgent(model=state.get("llm_model"))
     recommendations = recommendation_agent.generate(
         state["financial_analysis"]
     )
@@ -113,15 +112,19 @@ def generate_report(state: FinancialState) -> FinancialState:
             "current_step": "report_skipped",
         }
 
+    report_agent = ReportAgent(model=state.get("llm_model"))
     report = report_agent.generate(
         state["financial_analysis"]
     )
+    report_path = report_agent.save_report(report)
 
     logger.info("END: generate_report")
 
     return {
         **state,
         "report": report,
+        "report_path": report_path,
+        "report_generation_seconds": report_agent.last_generation_seconds,
         "current_step": "report",
     }
 

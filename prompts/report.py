@@ -24,6 +24,10 @@ Do NOT invent numbers.
 
 Use only the provided data.
 
+Do NOT include any calendar dates, date estimates, or date references in the report.
+Ignore date values present in the supplied goal or debt analysis. If timing is
+necessary, express it only as a relative duration in months.
+
 Financial Summary
 
 Monthly Income:
@@ -92,4 +96,5 @@ Use tables where appropriate.
 Keep the report between 700 and 1200 words.
 
 The report should sound professional and suitable for a financial advisor.
+Do not include dates.
 """.strip()

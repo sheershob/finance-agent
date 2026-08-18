@@ -34,30 +34,69 @@ st.markdown(
     "Upload your transaction history and receive an AI-powered financial analysis."
 )
 
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+        text-align: center;
+    }
+    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] > div {
+        justify-content: center;
+    }
+    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ---------------- Sidebar ----------------
 
 with st.sidebar:
 
     st.header("Configuration")
 
-    model = st.selectbox(
-        "Choose Ollama LLM Model",
-        [
-            "llama3.1:8b",
-            "qwen3:8b",
+    model_options = {
+        "☁ ": [
             "gemma4:31b-cloud",
-            "qwen3.5:cloud",
+            "gpt-oss:20b-cloud",
+            "nemotron-3-nano:30b-cloud",
         ],
+        "🔒 Local": [
+            "llama3.1:8b",
+            "llama3.2:1b",
+            "gemma2:2b",
+            "qwen3.5:2b",
+        ],
+    }
+    labeled_models = {
+        f"{group}: {model_name}": model_name
+        for group, model_names in model_options.items()
+        for model_name in model_names
+    }
+    selected_model = st.selectbox(
+        "Choose Ollama LLM Model",
+        options=list(labeled_models),
     )
+    model = labeled_models[selected_model]
 
     uploaded_file = st.file_uploader(
         "Upload Transaction CSV",
         type=["csv"],
     )
 
+    if uploaded_file is not None:
+        uploaded_file_key = (uploaded_file.name, uploaded_file.size)
+        if st.session_state.get("uploaded_file_key") != uploaded_file_key:
+            st.session_state.uploaded_file_key = uploaded_file_key
+            st.session_state.pop("analysis_result", None)
+
     analyze = st.button(
         "Analyze Finances",
         use_container_width=True,
+        disabled=uploaded_file is None,
     )
 
 # ---------------- Main ----------------
@@ -70,7 +109,9 @@ if uploaded_file is None:
 
     st.stop()
 
-st.success("CSV uploaded successfully!")
+upload_message = st.empty()
+if "analysis_result" not in st.session_state:
+    upload_message.success("CSV uploaded successfully!")
 print("CSV uploaded:", uploaded_file.name, flush=True)
 # st.write("DEBUG: app reached button")
 
@@ -79,8 +120,9 @@ print("CSV uploaded:", uploaded_file.name, flush=True)
 if analyze:
     # st.write("DEBUG: Analyze button clicked")
     print("Analyze button clicked", flush=True)
-    st.subheader("Analysis Progress")
-
+    st.session_state.pop("analysis_result", None)
+    progress_header = st.empty()
+    progress_header.subheader("Analysis Progress")
     progress_box = st.empty()
 
     with st.spinner("Analyzing finances..."):
@@ -115,6 +157,7 @@ if analyze:
             "goals": [],
             "debts": [],
             "errors": [],
+            "llm_model": model,
         }
 
         print("[4/6] Starting LangGraph...", flush=True)
@@ -129,6 +172,8 @@ if analyze:
         analysis = result.get("financial_analysis")
         recommendations = result.get("recommendations")
         report = result.get("report")
+        report_path = result.get("report_path")
+        report_generation_seconds = result.get("report_generation_seconds")
 
         if analysis is None:
             errors = result.get("errors", [])
@@ -140,9 +185,55 @@ if analyze:
 
         progress_box.info("6/6 — Preparing report...")
 
-        if report is None:
-            progress_box.warning("Analysis finished, but the report was not generated.")
+        report_missing = report is None
 
         print("[6/6] Complete", flush=True)
 
-    progress_box.success("Analysis complete!")
+    upload_message.empty()
+    progress_header.empty()
+    progress_box.empty()
+
+    st.session_state.analysis_result = {
+        "recommendations": recommendations,
+        "report": report,
+        "report_path": report_path,
+        "report_generation_seconds": report_generation_seconds,
+        "report_missing": report_missing,
+    }
+
+completed_result = st.session_state.get("analysis_result")
+
+if completed_result:
+    recommendations = completed_result["recommendations"]
+    report = completed_result["report"]
+    report_path = completed_result["report_path"]
+    report_generation_seconds = completed_result["report_generation_seconds"]
+
+    st.divider()
+    st.header("Analysis Results")
+
+    if completed_result["report_missing"]:
+        st.warning("Analysis finished, but the report was not generated.")
+
+    if report_generation_seconds is not None:
+        st.write(f"LLM report generated in {report_generation_seconds:.2f} seconds")
+
+    if recommendations:
+        st.header("Recommendations")
+        for recommendation in recommendations:
+            st.write(f"• {recommendation}")
+
+    if report is not None:
+        # st.subheader("Financial Report")
+
+        if report_path:
+            # st.caption(f"Saved to: {report_path}")
+            print(f"Report saved to: {report_path}", flush=True)
+
+        st.markdown(report)
+        st.download_button(
+            "Download Report",
+            data=report,
+            file_name="financial_report.md",
+            mime="text/markdown",
+        )
