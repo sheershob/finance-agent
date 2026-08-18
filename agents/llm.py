@@ -38,6 +38,7 @@ def get_llm(
             else temperature
         ),
         client_kwargs={"timeout": timeout_seconds},
+        num_gpu=-1,
     )
 
 class LLMManager:
@@ -64,9 +65,20 @@ class LLMManager:
         self.max_retries = max_retries
 
     def invoke(self, prompt: str | list[BaseMessage]) -> str:
+        if isinstance(prompt, str):
+            prompt_text = prompt
+        elif isinstance(prompt, list):
+            prompt_text = "\n".join([f"[{getattr(m, 'type', 'message')}] {getattr(m, 'content', str(m))}" for m in prompt])
+        else:
+            prompt_text = str(prompt)
+
         print("\n" + "=" * 70, flush=True)
-        print(f"[LLM] Model: {self.model_name}", flush=True)
-        print(f"[LLM] Prompt length: {len(prompt)} characters", flush=True)
+        print(f"[LLM INVOCATION] Model: {self.model_name}", flush=True)
+        print(f"[LLM INVOCATION] Prompt length: {len(prompt_text)} characters", flush=True)
+        print("-" * 70, flush=True)
+        print("[REAL-TIME PROMPT SENT TO LLM]:", flush=True)
+        print(prompt_text, flush=True)
+        print("-" * 70, flush=True)
         print("[LLM] Starting invocation...", flush=True)
 
         for attempt in range(self.max_retries + 1):
@@ -115,10 +127,24 @@ class LLMManager:
 
         raise RuntimeError("LLM invocation retry loop exited unexpectedly.")
 
-    async def ainvoke(self,prompt: str) -> str:
+    async def ainvoke(self, prompt: str | list[BaseMessage]) -> str:
         """
         Async version.
         """
+        if isinstance(prompt, str):
+            prompt_text = prompt
+        elif isinstance(prompt, list):
+            prompt_text = "\n".join([f"[{getattr(m, 'type', 'message')}] {getattr(m, 'content', str(m))}" for m in prompt])
+        else:
+            prompt_text = str(prompt)
+
+        print("\n" + "=" * 70, flush=True)
+        print(f"[LLM ASYNC INVOCATION] Model: {self.model_name}", flush=True)
+        print(f"[LLM ASYNC INVOCATION] Prompt length: {len(prompt_text)} characters", flush=True)
+        print("-" * 70, flush=True)
+        print("[REAL-TIME PROMPT SENT TO LLM]:", flush=True)
+        print(prompt_text, flush=True)
+        print("-" * 70, flush=True)
 
         response = await self.llm.ainvoke(
             prompt

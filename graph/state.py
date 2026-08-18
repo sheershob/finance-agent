@@ -53,6 +53,7 @@ class FinancialState(TypedDict, total=False):
 
     # Agent-generated recommendations
     recommendations: list[str]
+    recommendation_generation_seconds: float
 
     # Final generated report
     report: str

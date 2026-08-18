@@ -1,6 +1,4 @@
 """
-report_prompt.py
-
 Prompt template for the Report Agent.
 """
 
@@ -49,7 +47,7 @@ Emergency Fund:
 {analysis.emergency_fund_months} months
 
 Financial Health Score:
-{analysis.financial_health_score}/100
+{analysis.financial_health_score}%
 
 Budget
 
@@ -73,17 +71,13 @@ Top Spending Categories
 
 Generate a markdown report using the following sections.
 
-# Executive Summary
+# Overall Summary
 
 # Financial Overview
 
 # Income and Expenses
 
 # Budget Analysis
-
-# Debt Analysis
-
-# Goal Analysis
 
 # Financial Health
 

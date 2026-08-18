@@ -28,6 +28,168 @@ normalizer = TransactionNormalizer()
 workflow = get_workflow()
 
 
+# ─────────────────────────────────────────────────────────
+# Pipeline flow-diagram helpers
+# ─────────────────────────────────────────────────────────
+
+PIPELINE_STEPS = [
+    ("📂", "Parse Date"),
+    ("✅", "Validate"),
+    ("⚙️", "Normalize"),
+    ("📊", "Analyse"),
+    ("💡", "Recommend"),
+    ("📝", "Report"),
+]
+
+_PIPELINE_CSS = """
+<style>
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(99,179,237,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(99,179,237,0); }
+  100% { box-shadow: 0 0 0 0 rgba(99,179,237,0); }
+}
+.pipeline-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 10px 0 6px;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+.pip-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 68px;
+}
+.pip-icon {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  border: 2px solid transparent;
+  transition: background .3s, border-color .3s;
+}
+.pip-icon.pending { background: #1e2a38; border-color: #2d3d50; color: #4a6077; }
+.pip-icon.active  { background: #1a3a5c; border-color: #63b3ed; color: #fff;
+                    animation: pulse-ring 1.4s ease-out infinite; }
+.pip-icon.done    { background: #153a28; border-color: #38a169; color: #68d391; }
+.pip-icon.error   { background: #3a1515; border-color: #e53e3e; color: #fc8181; }
+.pip-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .03em;
+  white-space: nowrap;
+}
+.pip-label.pending { color: #4a6077; }
+.pip-label.active  { color: #90cdf4; }
+.pip-label.done    { color: #68d391; }
+.pip-label.error   { color: #fc8181; }
+.pip-connector {
+  flex: 1; height: 2px; min-width: 6px; max-width: 28px;
+  margin-bottom: 16px;
+  transition: background .3s;
+}
+.pip-connector.pending { background: #2d3d50; }
+.pip-connector.done    { background: #38a169; }
+.pip-connector.active  { background: linear-gradient(90deg, #38a169, #63b3ed); }
+.pip-step-num {
+  font-size: 9px; color: #4a6077; margin-top: -2px;
+}
+</style>
+"""
+
+
+def _render_pipeline(completed: int, active: int, error: bool = False) -> str:
+    """
+    Render the 6-step pipeline as an HTML string.
+
+    completed : number of fully-done steps (0–6)
+    active    : index (0–5) of the currently-running step, or -1
+    error     : colour the active step red
+    """
+    html = _PIPELINE_CSS + '<div class="pipeline-wrap">'
+    n = len(PIPELINE_STEPS)
+    for i, (icon, label) in enumerate(PIPELINE_STEPS):
+        if i < completed:
+            cls, disp = "done", "✓"
+        elif i == active:
+            cls = "error" if error else "active"
+            disp = "✕" if error else icon
+        else:
+            cls, disp = "pending", icon
+
+        html += (
+            f'<div class="pip-step">'
+            f'  <div class="pip-icon {cls}">{disp}</div>'
+            f'  <div class="pip-label {cls}">{label}</div>'
+            f'  <div class="pip-step-num">{i + 1}/6</div>'
+            f'</div>'
+        )
+
+        if i < n - 1:
+            if i < completed:
+                conn = "done"
+            elif i == active - 1:
+                conn = "active"
+            else:
+                conn = "pending"
+            html += f'<div class="pip-connector {conn}"></div>'
+
+    html += "</div>"
+    return html
+
+
+def show_pipeline(placeholder, completed: int, active: int, error: bool = False):
+    placeholder.markdown(
+        _render_pipeline(completed, active, error),
+        unsafe_allow_html=True,
+    )
+
+# ─────────────────────────────────────────────────────────
+# Render helpers
+# ─────────────────────────────────────────────────────────
+
+def render_recommendations(
+    recommendations: list[str] | None,
+    generation_seconds: float | None,
+) -> None:
+    if not recommendations:
+        return
+
+    st.header("Recommendations")
+    if generation_seconds is not None:
+        st.write(f"Recommendations generated in {generation_seconds:.2f} seconds")
+
+    for recommendation in recommendations:
+        st.write(f"• {recommendation}")
+
+def render_report(
+    report: str | None,
+    report_path: str | None,
+    generation_seconds: float | None,
+) -> None:
+    if report is None:
+        return
+
+    st.header("Financial Report")
+    if generation_seconds is not None:
+        st.write(f"Report generated in {generation_seconds:.2f} seconds")
+
+    if report_path:
+        print(f"Report saved to: {report_path}", flush=True)
+
+    st.markdown(report)
+    st.download_button(
+        "Download Report",
+        data=report,
+        file_name="financial_report.md",
+        mime="text/markdown",
+    )
+
+# ─────────────────────────────────────────────────────────
+# Page layout
+# ─────────────────────────────────────────────────────────
+
 st.title("AI Financial Planning Assistant")
 
 st.markdown(
@@ -52,7 +214,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------------- Sidebar ----------------
+# ── Sidebar ───────────────────────────────────────────────
 
 with st.sidebar:
 
@@ -99,58 +261,51 @@ with st.sidebar:
         disabled=uploaded_file is None,
     )
 
-# ---------------- Main ----------------
+# ── Main ──────────────────────────────────────────────────
 
 if uploaded_file is None:
-
-    st.info(
-        "Please upload a CSV file to begin."
-    )
-
+    st.info("Please upload a CSV file to begin.")
     st.stop()
 
 upload_message = st.empty()
 if "analysis_result" not in st.session_state:
     upload_message.success("CSV uploaded successfully!")
 print("CSV uploaded:", uploaded_file.name, flush=True)
-# st.write("DEBUG: app reached button")
 
-# Placeholder
+# ── Analysis run ──────────────────────────────────────────
 
 if analyze:
-    # st.write("DEBUG: Analyze button clicked")
     print("Analyze button clicked", flush=True)
     st.session_state.pop("analysis_result", None)
-    progress_header = st.empty()
-    progress_header.subheader("Analysis Progress")
-    progress_box = st.empty()
 
-    with st.spinner("Analyzing finances..."):
+    # Pipeline diagram — shown for the whole duration of analysis
+    st.markdown("##### Pipeline")
+    pipeline_ph = st.empty()
+    show_pipeline(pipeline_ph, completed=0, active=0)   # step 1 active
 
-        progress_box.info("1/6 — Parsing CSV...")
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".csv",
-        ) as temp_file:
+    with st.spinner("Analyzing finances…"):
 
-            temp_file.write(uploaded_file.getbuffer())
-
-            temp_file_path = temp_file.name
+        # 1 — Parse CSV
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+            tmp.write(uploaded_file.getbuffer())
+            temp_file_path = tmp.name
 
         transactions = csv_parser.parse(temp_file_path)
         print("[1/6] CSV parsing complete", flush=True)
 
-        progress_box.info("2/6 — Validating transactions...")
+        # 2 — Validate
+        show_pipeline(pipeline_ph, completed=1, active=1)
         validation_result = validator.validate_batch(transactions)
         transactions = validation_result.as_batch()
         print("[2/6] Validation complete", flush=True)
 
-        progress_box.info("3/6 — Normalizing transactions...")
-        # transactions = normalizer.normalize(transactions)
+        # 3 — Normalize
+        show_pipeline(pipeline_ph, completed=2, active=2)
         transactions = normalizer.normalize(validation_result)
         print("[3/6] Normalization complete", flush=True)
 
-        progress_box.info("4/6 — Running financial analysis...")
+        # 4 — Financial analysis (LangGraph)
+        show_pipeline(pipeline_ph, completed=3, active=3)
 
         state = {
             "transactions": transactions,
@@ -160,51 +315,87 @@ if analyze:
             "llm_model": model,
         }
 
-        print("[4/6] Starting LangGraph...", flush=True)
+        print("[4/6] Starting LangGraph…", flush=True)
 
-        result = workflow.invoke(state)
+        results_header = st.empty()
+        recommendations_placeholder = st.empty()
+        report_placeholder = st.empty()
+        result = {}
+
+        for update in workflow.stream(state, stream_mode="updates"):
+            for node_name, node_result in update.items():
+                result.update(node_result)
+
+                if node_name == "analyze_finances":
+                    # 5 — Recommendations
+                    show_pipeline(pipeline_ph, completed=4, active=4)
+
+                if node_name == "generate_recommendations":
+                    with results_header.container():
+                        st.divider()
+                        st.header("Analysis Results")
+
+                    with recommendations_placeholder.container():
+                        render_recommendations(
+                            node_result.get("recommendations"),
+                            node_result.get("recommendation_generation_seconds"),
+                        )
+                    # 6 — Report
+                    show_pipeline(pipeline_ph, completed=5, active=5)
+
+                if node_name == "generate_report":
+                    with report_placeholder.container():
+                        render_report(
+                            node_result.get("report"),
+                            node_result.get("report_path"),
+                            node_result.get("report_generation_seconds"),
+                        )
+
         print("[DEBUG] Final workflow state keys:", list(result.keys()), flush=True)
-
-        print("[4/6] LangGraph completed", flush=True)
-
-        progress_box.info("5/6 — Preparing recommendations...")
+        print("[6/6] LangGraph completed", flush=True)
 
         analysis = result.get("financial_analysis")
         recommendations = result.get("recommendations")
+        recommendation_generation_seconds = result.get("recommendation_generation_seconds")
         report = result.get("report")
         report_path = result.get("report_path")
         report_generation_seconds = result.get("report_generation_seconds")
 
         if analysis is None:
             errors = result.get("errors", [])
-            progress_box.error("Analysis failed before recommendations could be generated.")
+            show_pipeline(pipeline_ph, completed=3, active=3, error=True)
+            st.error("Analysis failed before recommendations could be generated.")
             if errors:
                 st.error("Workflow errors: " + "; ".join(errors))
             print("[analysis failed] Result keys:", list(result.keys()), flush=True)
             st.stop()
 
-        progress_box.info("6/6 — Preparing report...")
-
         report_missing = report is None
 
+        # All 6 steps complete
+        show_pipeline(pipeline_ph, completed=6, active=-1)
         print("[6/6] Complete", flush=True)
 
     upload_message.empty()
-    progress_header.empty()
-    progress_box.empty()
 
     st.session_state.analysis_result = {
         "recommendations": recommendations,
+        "recommendation_generation_seconds": recommendation_generation_seconds,
         "report": report,
         "report_path": report_path,
         "report_generation_seconds": report_generation_seconds,
         "report_missing": report_missing,
     }
 
+# ── Show cached results ───────────────────────────────────
+
 completed_result = st.session_state.get("analysis_result")
 
-if completed_result:
+if completed_result and not analyze:
     recommendations = completed_result["recommendations"]
+    recommendation_generation_seconds = completed_result.get(
+        "recommendation_generation_seconds"
+    )
     report = completed_result["report"]
     report_path = completed_result["report_path"]
     report_generation_seconds = completed_result["report_generation_seconds"]
@@ -215,25 +406,5 @@ if completed_result:
     if completed_result["report_missing"]:
         st.warning("Analysis finished, but the report was not generated.")
 
-    if report_generation_seconds is not None:
-        st.write(f"LLM report generated in {report_generation_seconds:.2f} seconds")
-
-    if recommendations:
-        st.header("Recommendations")
-        for recommendation in recommendations:
-            st.write(f"• {recommendation}")
-
-    if report is not None:
-        # st.subheader("Financial Report")
-
-        if report_path:
-            # st.caption(f"Saved to: {report_path}")
-            print(f"Report saved to: {report_path}", flush=True)
-
-        st.markdown(report)
-        st.download_button(
-            "Download Report",
-            data=report,
-            file_name="financial_report.md",
-            mime="text/markdown",
-        )
+    render_recommendations(recommendations, recommendation_generation_seconds)
+    render_report(report, report_path, report_generation_seconds)

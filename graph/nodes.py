@@ -97,6 +97,7 @@ def generate_recommendations(state: FinancialState) -> FinancialState:
     return {
         **state,
         "recommendations": recommendations,
+        "recommendation_generation_seconds": recommendation_agent.last_generation_seconds,
         "current_step": "recommendations",
     }
 
