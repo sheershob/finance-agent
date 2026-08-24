@@ -1,0 +1,35 @@
+# UI
+streamlit
+
+# Data validation and schemas
+pydantic
+
+# Data processing
+pandas
+openpyxl
+
+# LangGraph / LangChain
+langgraph
+langchain
+langchain-core
+langchain-ollama
+
+# LLM / Ollama
+ollama
+
+# Configuration
+python-dotenv
+
+# Visualization
+matplotlib
+plotly
+
+# HTTP / API
+httpx
+
+# Report generation
+reportlab
+
+# Testing
+pytest
+pytest-asyncio
