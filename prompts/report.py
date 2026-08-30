@@ -51,7 +51,7 @@ Financial Health Score:
 
 Budget
 
-{analysis.budget}
+{analysis.budget.to_prompt_string()}
 
 Goal Analysis
 

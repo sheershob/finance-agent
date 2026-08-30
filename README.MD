@@ -38,3 +38,9 @@ Streamlit UI
 
 ## Command to run the Application
 python -m streamlit run ui/app.py
+
+## Build the Application
+docker build -t ai-financial-planner .
+
+## Run the application
+docker run -p 8501:8501 ai-financial-planner

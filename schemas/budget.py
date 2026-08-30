@@ -18,6 +18,17 @@ class BudgetAllocation(BaseModel):
         ge=0
     )
 
+    def to_prompt_string(self) -> str:
+        """Return a compact, LLM-safe representation."""
+        return (
+            f"category={self.category.value}, "
+            f"recommended_amount={self.recommended_amount}"
+        )
+
+    def __str__(self) -> str:
+        return self.to_prompt_string()
+
+
 class MonthlyBudget(BaseModel):
     """
     Represents the complete monthly budget plan.
@@ -56,3 +67,21 @@ class MonthlyBudget(BaseModel):
         ge=0,
         description="Unallocated money remaining after budgeting."
     )
+
+    def to_prompt_string(self) -> str:
+        """Return a compact, LLM-safe budget summary."""
+        allocations = ", ".join(
+            str(allocation) for allocation in self.allocations
+        )
+        return (
+            "monthly_income=" + str(self.monthly_income)
+            + " total_budget=" + str(self.total_budget)
+            + f" allocations=[{allocations}]"
+            + " expected_savings=" + str(self.expected_savings)
+            + " recommended_investment=" + str(self.recommended_investment)
+            + " emergency_fund_contribution=" + str(self.emergency_fund_contribution)
+            + " remaining_balance=" + str(self.remaining_balance)
+        )
+
+    def __str__(self) -> str:
+        return self.to_prompt_string()
