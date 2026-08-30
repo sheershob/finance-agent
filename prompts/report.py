@@ -55,11 +55,11 @@ Budget
 
 Goal Analysis
 
-{analysis.goal_analysis}
+{analysis.goal_analysis if analysis.goal_analysis else 'No goal data available.'}
 
 Debt Analysis
 
-{analysis.debt_analysis}
+{analysis.debt_analysis if analysis.debt_analysis else 'No debt data available.'}
 
 Expense Breakdown
 

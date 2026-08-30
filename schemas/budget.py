@@ -69,19 +69,43 @@ class MonthlyBudget(BaseModel):
     )
 
     def to_prompt_string(self) -> str:
-        """Return a compact, LLM-safe budget summary."""
-        allocations = ", ".join(
-            str(allocation) for allocation in self.allocations
+        """Return a human-readable budget summary for the prompt."""
+        lines = [
+            "Monthly Income:",
+            f"₹{self.monthly_income}",
+            "",
+            "Total Budget:",
+            f"₹{self.total_budget}",
+            "",
+            "Category Allocations:",
+        ]
+
+        if self.allocations:
+            for allocation in self.allocations:
+                lines.append(
+                    f"{allocation.category.value}: ₹{allocation.recommended_amount}"
+                )
+        else:
+            lines.append("No allocation data available.")
+
+        lines.extend(
+            [
+                "",
+                "Expected Savings:",
+                f"₹{self.expected_savings}",
+                "",
+                "Recommended Investment:",
+                f"₹{self.recommended_investment}",
+                "",
+                "Emergency Fund Contribution:",
+                f"₹{self.emergency_fund_contribution}",
+                "",
+                "Remaining Balance:",
+                f"₹{self.remaining_balance}",
+            ]
         )
-        return (
-            "monthly_income=" + str(self.monthly_income)
-            + " total_budget=" + str(self.total_budget)
-            + f" allocations=[{allocations}]"
-            + " expected_savings=" + str(self.expected_savings)
-            + " recommended_investment=" + str(self.recommended_investment)
-            + " emergency_fund_contribution=" + str(self.emergency_fund_contribution)
-            + " remaining_balance=" + str(self.remaining_balance)
-        )
+
+        return "\n".join(lines)
 
     def __str__(self) -> str:
         return self.to_prompt_string()
