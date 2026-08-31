@@ -17,8 +17,21 @@ DEFAULT_MODEL = os.getenv("OLLAMA_MODEL","gemma4:31b-cloud ")
 DEFAULT_BASE_URL = os.getenv("OLLAMA_BASE_URL","http://localhost:11434")
 DEFAULT_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE","0.0"))
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60"))
-MAX_RETRIES = 3
+MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.0
+
+
+class OllamaConnectionError(RuntimeError):
+    """Raised when Ollama is unreachable or fails repeatedly."""
+
+
+def _format_ollama_error(exc: Exception) -> str:
+    base_url = DEFAULT_BASE_URL
+    return (
+        "Ollama is currently unavailable. "
+        "If the service is running, try again in a moment."
+    )
+
 
 def get_llm(
     model: str | None = None,
@@ -115,7 +128,7 @@ class LLMManager:
 
                 if retries_remaining == 0:
                     print("[LLM] No retries remaining.", flush=True)
-                    raise
+                    raise OllamaConnectionError(_format_ollama_error(exc)) from exc
 
                 delay = RETRY_DELAY_SECONDS * (attempt + 1)
                 print(
@@ -125,7 +138,9 @@ class LLMManager:
                 )
                 time.sleep(delay)
 
-        raise RuntimeError("LLM invocation retry loop exited unexpectedly.")
+        raise OllamaConnectionError(
+            "Ollama is currently unavailable. Please check that the Ollama service is running and try again."
+        )
 
     async def ainvoke(self, prompt: str | list[BaseMessage]) -> str:
         """

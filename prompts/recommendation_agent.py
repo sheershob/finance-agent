@@ -1,6 +1,4 @@
 """
-recommendation_prompt.py
-
 Prompt template for the Recommendation Agent.
 """
 

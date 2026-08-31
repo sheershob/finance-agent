@@ -1,6 +1,7 @@
 import streamlit as st
 import tempfile
 
+from agents.llm import OllamaConnectionError
 from graph.workflow import build_workflow
 
 from tools.csv_parser import CSVParser
@@ -33,7 +34,7 @@ workflow = get_workflow()
 # ─────────────────────────────────────────────────────────
 
 PIPELINE_STEPS = [
-    ("📂", "Parse Date"),
+    ("📂", "Parse File"),
     ("✅", "Validate"),
     ("⚙️", "Normalize"),
     ("📊", "Analyse"),
@@ -283,98 +284,106 @@ if analyze:
     pipeline_ph = st.empty()
     show_pipeline(pipeline_ph, completed=0, active=0)   # step 1 active
 
-    with st.spinner("Analyzing finances…"):
+    try:
+        with st.spinner("Analyzing finances…"):
 
-        # 1 — Parse CSV
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-            tmp.write(uploaded_file.getbuffer())
-            temp_file_path = tmp.name
+            # 1 — Parse CSV
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                tmp.write(uploaded_file.getbuffer())
+                temp_file_path = tmp.name
 
-        transactions = csv_parser.parse(temp_file_path)
-        print("[1/6] CSV parsing complete", flush=True)
+            transactions = csv_parser.parse(temp_file_path)
+            print("[1/6] CSV parsing complete", flush=True)
 
-        # 2 — Validate
-        show_pipeline(pipeline_ph, completed=1, active=1)
-        validation_result = validator.validate_batch(transactions)
-        transactions = validation_result.as_batch()
-        print("[2/6] Validation complete", flush=True)
+            # 2 — Validate
+            show_pipeline(pipeline_ph, completed=1, active=1)
+            validation_result = validator.validate_batch(transactions)
+            transactions = validation_result.as_batch()
+            print("[2/6] Validation complete", flush=True)
 
-        # 3 — Normalize
-        show_pipeline(pipeline_ph, completed=2, active=2)
-        transactions = normalizer.normalize(validation_result)
-        print("[3/6] Normalization complete", flush=True)
+            # 3 — Normalize
+            show_pipeline(pipeline_ph, completed=2, active=2)
+            transactions = normalizer.normalize(validation_result)
+            print("[3/6] Normalization complete", flush=True)
 
-        # 4 — Financial analysis (LangGraph)
-        show_pipeline(pipeline_ph, completed=3, active=3)
+            # 4 — Financial analysis (LangGraph)
+            show_pipeline(pipeline_ph, completed=3, active=3)
 
-        state = {
-            "transactions": transactions,
-            "goals": [],
-            "debts": [],
-            "errors": [],
-            "llm_model": model,
-        }
+            state = {
+                "transactions": transactions,
+                "goals": [],
+                "debts": [],
+                "errors": [],
+                "llm_model": model,
+            }
 
-        print("[4/6] Starting LangGraph…", flush=True)
+            print("[4/6] Starting LangGraph…", flush=True)
 
-        results_header = st.empty()
-        recommendations_placeholder = st.empty()
-        report_placeholder = st.empty()
-        result = {}
+            results_header = st.empty()
+            recommendations_placeholder = st.empty()
+            report_placeholder = st.empty()
+            result = {}
 
-        for update in workflow.stream(state, stream_mode="updates"):
-            for node_name, node_result in update.items():
-                result.update(node_result)
+            for update in workflow.stream(state, stream_mode="updates"):
+                for node_name, node_result in update.items():
+                    result.update(node_result)
 
-                if node_name == "analyze_finances":
-                    # 5 — Recommendations
-                    show_pipeline(pipeline_ph, completed=4, active=4)
+                    if node_name == "analyze_finances":
+                        # 5 — Recommendations
+                        show_pipeline(pipeline_ph, completed=4, active=4)
 
-                if node_name == "generate_recommendations":
-                    with results_header.container():
-                        st.divider()
-                        st.header("Analysis Results")
+                    if node_name == "generate_recommendations":
+                        with results_header.container():
+                            st.divider()
+                            st.header("Analysis Results")
 
-                    with recommendations_placeholder.container():
-                        render_recommendations(
-                            node_result.get("recommendations"),
-                            node_result.get("recommendation_generation_seconds"),
-                        )
-                    # 6 — Report
-                    show_pipeline(pipeline_ph, completed=5, active=5)
+                        with recommendations_placeholder.container():
+                            render_recommendations(
+                                node_result.get("recommendations"),
+                                node_result.get("recommendation_generation_seconds"),
+                            )
+                        # 6 — Report
+                        show_pipeline(pipeline_ph, completed=5, active=5)
 
-                if node_name == "generate_report":
-                    with report_placeholder.container():
-                        render_report(
-                            node_result.get("report"),
-                            node_result.get("report_path"),
-                            node_result.get("report_generation_seconds"),
-                        )
+                    if node_name == "generate_report":
+                        with report_placeholder.container():
+                            render_report(
+                                node_result.get("report"),
+                                node_result.get("report_path"),
+                                node_result.get("report_generation_seconds"),
+                            )
 
-        print("[DEBUG] Final workflow state keys:", list(result.keys()), flush=True)
-        print("[6/6] LangGraph completed", flush=True)
+            print("[DEBUG] Final workflow state keys:", list(result.keys()), flush=True)
+            print("[6/6] LangGraph completed", flush=True)
 
-        analysis = result.get("financial_analysis")
-        recommendations = result.get("recommendations")
-        recommendation_generation_seconds = result.get("recommendation_generation_seconds")
-        report = result.get("report")
-        report_path = result.get("report_path")
-        report_generation_seconds = result.get("report_generation_seconds")
+            analysis = result.get("financial_analysis")
+            recommendations = result.get("recommendations")
+            recommendation_generation_seconds = result.get("recommendation_generation_seconds")
+            report = result.get("report")
+            report_path = result.get("report_path")
+            report_generation_seconds = result.get("report_generation_seconds")
 
-        if analysis is None:
-            errors = result.get("errors", [])
-            show_pipeline(pipeline_ph, completed=3, active=3, error=True)
-            st.error("Analysis failed before recommendations could be generated.")
-            if errors:
-                st.error("Workflow errors: " + "; ".join(errors))
-            print("[analysis failed] Result keys:", list(result.keys()), flush=True)
-            st.stop()
+            if analysis is None:
+                errors = result.get("errors", [])
+                show_pipeline(pipeline_ph, completed=3, active=3, error=True)
+                st.error("Analysis failed before recommendations could be generated.")
+                if errors:
+                    st.error("Workflow errors: " + "; ".join(errors))
+                print("[analysis failed] Result keys:", list(result.keys()), flush=True)
+                st.stop()
 
-        report_missing = report is None
+            report_missing = report is None
 
-        # All 6 steps complete
-        show_pipeline(pipeline_ph, completed=6, active=-1)
-        print("[6/6] Complete", flush=True)
+            # All 6 steps complete
+            show_pipeline(pipeline_ph, completed=6, active=-1)
+            print("[6/6] Complete", flush=True)
+
+    except OllamaConnectionError as exc:
+        show_pipeline(pipeline_ph, completed=4, active=4, error=True)
+        st.error(str(exc))
+        # st.info("Please verify Ollama is running and try again.")
+        print(f"[LLM] Ollama connection error handled in UI: {exc}", flush=True)
+        st.stop()
 
     upload_message.empty()
 
