@@ -372,13 +372,19 @@ with st.expander(expander_title, expanded=(debts_count > 0)):
         st.subheader(f"Active Debts ({len(st.session_state.debts)})")
         for idx, d in enumerate(st.session_state.debts):
             col_info, col_btn = st.columns([5, 1])
+            is_insuff = (d.monthly_emi * Decimal(d.remaining_tenure_months)) < d.outstanding_principal
             with col_info:
+                warning_badge = " ⚠️ *(EMI/tenure insufficient to repay principal)*" if is_insuff else ""
                 st.markdown(
-                    f"**{idx + 1}. {d.loan_name}** — "
+                    f"**{idx + 1}. {d.loan_name}**{warning_badge} — "
                     f"Principal: **₹{d.outstanding_principal:,.2f}** @ **{d.interest_rate}%** p.a. | "
                     f"EMI: **₹{d.monthly_emi:,.2f}/mo** | "
                     f"Tenure: **{d.remaining_tenure_months} months**"
                 )
+                if is_insuff:
+                    st.caption("⚠️ Total EMI payments over remaining tenure (₹{:,.2f}) cannot fully cover the principal (₹{:,.2f}).".format(
+                        d.monthly_emi * Decimal(d.remaining_tenure_months), d.outstanding_principal
+                    ))
             with col_btn:
                 if st.button("Delete", key=f"del_debt_{idx}"):
                     st.session_state.debts.pop(idx)

@@ -33,3 +33,5 @@ class DebtAnalysis(BaseModel):
     monthly_principal_component: Decimal
     prepayment_savings: Decimal
     prepayment_months_saved: int
+    is_insufficient: bool = False
+    warning_message: str | None = None

@@ -32,6 +32,8 @@ def format_debt_analysis_for_prompt(debt_analysis: list[DebtAnalysis] | None) ->
             f"  - Monthly Interest Component: ₹{item.monthly_interest_component:,.2f}\n"
             f"  - Interest-to-Principal Ratio: {item.interest_to_principal_ratio}%"
         )
+        if item.is_insufficient and item.warning_message:
+            line += f"\n  - ⚠️ WARNING: {item.warning_message}"
         if item.prepayment_savings > 0:
             line += (
                 f"\n  - Potential Prepayment Savings: ₹{item.prepayment_savings:,.2f} "
