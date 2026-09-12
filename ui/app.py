@@ -1,5 +1,6 @@
 import streamlit as st
 import tempfile
+from decimal import Decimal
 
 from agents.llm import OllamaConnectionError
 from graph.workflow import build_workflow
@@ -7,6 +8,7 @@ from graph.workflow import build_workflow
 from tools.csv_parser import CSVParser
 from tools.validators import TransactionValidator
 from tools.transaction_normalizer import TransactionNormalizer
+from schemas.debt import Debt
 
 
 st.set_page_config(
@@ -273,6 +275,121 @@ if "analysis_result" not in st.session_state:
     upload_message.success("CSV uploaded successfully!")
 print("CSV uploaded:", uploaded_file.name, flush=True)
 
+# ── Optional Debt Information (Main Page) ─────────────────
+if "debts" not in st.session_state:
+    st.session_state.debts = []
+
+debts_count = len(st.session_state.debts)
+expander_title = (
+    f"Optional: Add Debt / Loan Information ({debts_count} Added)"
+    if debts_count > 0
+    else "Optional: Add Debt / Loan Information"
+)
+
+with st.expander(expander_title, expanded=(debts_count > 0)):
+    st.markdown(
+        "If you have any active loans or debts (e.g., Home Loan, Car Loan, Personal Loan), "
+        "add them below."
+    )
+    st.subheader("Add a New Debt")
+    loan_name_input = st.text_input(
+        "Loan / Debt Name *",
+        placeholder="e.g. Home Loan, Car Loan, Credit Card",
+        key="new_debt_loan_name",
+    )
+    col1, col2 = st.columns(2)
+    outstanding_principal_input = col1.number_input(
+        "Outstanding Principal (₹) *",
+        min_value=0.0,
+        step=5000.0,
+        format="%.2f",
+        help="Total remaining principal balance left to pay.",
+        key="new_debt_outstanding_principal",
+    )
+    interest_rate_input = col2.number_input(
+        "Annual Interest Rate (%) *",
+        min_value=0.0,
+        max_value=100.0,
+        step=0.1,
+        format="%.2f",
+        help="Annual interest rate percentage.",
+        key="new_debt_interest_rate",
+    )
+    col3, col4 = st.columns(2)
+    remaining_tenure_input = col3.number_input(
+        "Remaining Tenure (months) *",
+        min_value=0,
+        step=1,
+        help="Remaining tenure in months.",
+        key="new_debt_remaining_tenure",
+    )
+    monthly_emi_input = col4.number_input(
+        "Monthly EMI (₹) *",
+        min_value=0.0,
+        step=500.0,
+        format="%.2f",
+        help="Fixed monthly installment amount.",
+        key="new_debt_monthly_emi",
+    )
+
+    form_valid = (
+        loan_name_input.strip() != ""
+        and outstanding_principal_input > 0
+        and remaining_tenure_input > 0
+        and monthly_emi_input > 0
+    )
+
+    submit_debt = st.button(
+        "➕ Add Debt Entry",
+        use_container_width=True,
+        disabled=not form_valid,
+    )
+
+    if submit_debt:
+        new_debt = Debt(
+            loan_name=loan_name_input.strip(),
+            outstanding_principal=Decimal(str(outstanding_principal_input)),
+            interest_rate=Decimal(str(interest_rate_input)),
+            remaining_tenure_months=int(remaining_tenure_input),
+            monthly_emi=Decimal(str(monthly_emi_input)),
+        )
+
+        st.session_state.debts.append(new_debt)
+        st.session_state.pop("analysis_result", None)
+        for field_key in (
+            "new_debt_loan_name",
+            "new_debt_outstanding_principal",
+            "new_debt_interest_rate",
+            "new_debt_remaining_tenure",
+            "new_debt_monthly_emi",
+        ):
+            st.session_state.pop(field_key, None)
+        st.success(f"Added '{loan_name_input.strip()}' successfully!")
+        st.rerun()
+
+    if st.session_state.debts:
+        st.divider()
+        st.subheader(f"Active Debts ({len(st.session_state.debts)})")
+        for idx, d in enumerate(st.session_state.debts):
+            col_info, col_btn = st.columns([5, 1])
+            with col_info:
+                st.markdown(
+                    f"**{idx + 1}. {d.loan_name}** — "
+                    f"Principal: **₹{d.outstanding_principal:,.2f}** @ **{d.interest_rate}%** p.a. | "
+                    f"EMI: **₹{d.monthly_emi:,.2f}/mo** | "
+                    f"Tenure: **{d.remaining_tenure_months} months**"
+                )
+            with col_btn:
+                if st.button("Delete", key=f"del_debt_{idx}"):
+                    st.session_state.debts.pop(idx)
+                    st.session_state.pop("analysis_result", None)
+                    st.rerun()
+
+        if st.button("Clear All Debts"):
+            st.session_state.debts = []
+            st.session_state.pop("analysis_result", None)
+            st.rerun()
+
 # ── Analysis run ──────────────────────────────────────────
 
 if analyze:
@@ -312,7 +429,7 @@ if analyze:
             state = {
                 "transactions": transactions,
                 "goals": [],
-                "debts": [],
+                "debts": st.session_state.get("debts", []),
                 "errors": [],
                 "llm_model": model,
             }

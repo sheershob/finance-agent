@@ -3,4 +3,3 @@ __pycache__
 reports/
 tests/
 scratch/
-test_llm.py

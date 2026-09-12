@@ -19,8 +19,7 @@ class Debt(BaseModel):
 
     remaining_tenure_months: int = Field(gt=0)
     monthly_emi: Decimal = Field(gt=0)
-    loan_start_date: date | None
-    loan_type: str | None
+    loan_start_date: date | None = None
 
 
 class DebtAnalysis(BaseModel):
