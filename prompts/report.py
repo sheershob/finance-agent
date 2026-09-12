@@ -5,11 +5,20 @@ Prompt template for the Report Agent.
 from __future__ import annotations
 
 from schemas.analysis import FinancialAnalysis
+from tools.prompt_formatter import (
+    format_debt_analysis_for_prompt,
+    format_goal_analysis_for_prompt,
+    format_categories_for_prompt,
+)
 
 
 def build_report_prompt(
     analysis: FinancialAnalysis,
 ) -> str:
+    debt_str = format_debt_analysis_for_prompt(analysis.debt_analysis)
+    goal_str = format_goal_analysis_for_prompt(analysis.goal_analysis)
+    breakdown_str = format_categories_for_prompt(analysis.expense_breakdown)
+    top_cats_str = format_categories_for_prompt(analysis.top_categories)
 
     return f"""
 You are an expert Financial Report Writer.
@@ -29,13 +38,13 @@ necessary, express it only as a relative duration in months.
 Financial Summary
 
 Monthly Income:
-₹{analysis.monthly_income}
+₹{analysis.monthly_income:,.2f}
 
 Monthly Expenses:
-₹{analysis.monthly_expenses}
+₹{analysis.monthly_expenses:,.2f}
 
 Monthly Surplus:
-₹{analysis.monthly_surplus}
+₹{analysis.monthly_surplus:,.2f}
 
 Savings Rate:
 {analysis.savings_rate}%
@@ -47,7 +56,7 @@ Emergency Fund:
 {analysis.emergency_fund_months} months
 
 Financial Health Score:
-{analysis.financial_health_score}%
+{analysis.financial_health_score}/100
 
 Budget
 
@@ -55,19 +64,19 @@ Budget
 
 Goal Analysis
 
-{analysis.goal_analysis if analysis.goal_analysis else 'No goal data available.'}
+{goal_str}
 
 Debt Analysis
 
-{analysis.debt_analysis if analysis.debt_analysis else 'No debt data available.'}
+{debt_str}
 
 Expense Breakdown
 
-{analysis.expense_breakdown}
+{breakdown_str}
 
 Top Spending Categories
 
-{analysis.top_categories}
+{top_cats_str}
 
 Generate a markdown report using the following sections.
 
