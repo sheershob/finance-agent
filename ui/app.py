@@ -9,6 +9,7 @@ from tools.csv_parser import CSVParser
 from tools.validators import TransactionValidator
 from tools.transaction_normalizer import TransactionNormalizer
 from schemas.debt import Debt
+from schemas.goal import FinancialGoal
 
 
 st.set_page_config(
@@ -396,6 +397,126 @@ with st.expander(expander_title, expanded=(debts_count > 0)):
             st.session_state.pop("analysis_result", None)
             st.rerun()
 
+# ── Optional Goal Information (Main Page) ─────────────────
+if "goals" not in st.session_state:
+    st.session_state.goals = []
+
+goals_count = len(st.session_state.goals)
+goal_expander_title = (
+    f"Optional: Add Financial Goals ({goals_count} Added)"
+    if goals_count > 0
+    else "Optional: Add Financial Goals"
+)
+
+with st.expander(goal_expander_title, expanded=(goals_count > 0)):
+    st.markdown(
+        "If you have target financial goals (e.g., Buying a Car, House Down Payment), "
+        "add them below."
+    )
+    goal_name_input = st.text_input(
+        "Goal Name *",
+        placeholder="e.g. Emergency Fund, Buy a Car, House Down Payment",
+        key="new_goal_name",
+    )
+    g_col1, g_col2 = st.columns(2)
+    target_amount_input = g_col1.number_input(
+        "Target Amount (₹) *",
+        min_value=0.0,
+        step=10000.0,
+        format="%.2f",
+        help="Target cost to achieve this goal.",
+        key="new_goal_target_amount",
+    )
+    current_amount_input = g_col2.number_input(
+        "Current Savings Accumulated (₹) *",
+        min_value=0.0,
+        step=5000.0,
+        format="%.2f",
+        help="Savings already accumulated toward this goal.",
+        key="new_goal_current_amount",
+    )
+    g_col3, g_col4 = st.columns(2)
+    time_horizon_input = g_col3.number_input(
+        "Time Horizon (months) *",
+        min_value=0,
+        step=1,
+        help="Target timeframe to achieve the goal in months.",
+        key="new_goal_time_horizon",
+    )
+    priority_input = g_col4.slider(
+        "Priority (1 = Highest, 5 = Lowest)",
+        min_value=1,
+        max_value=5,
+        value=3,
+        help="Priority ranking for surplus allocation.",
+        key="new_goal_priority",
+    )
+    category_input = st.selectbox(
+        "Goal Category",
+        options=["Emergency Fund", "Savings", "House / Property", "Vehicle", "Retirement", "Travel", "Other"],
+        key="new_goal_category",
+    )
+
+    goal_form_valid = (
+        goal_name_input.strip() != ""
+        and target_amount_input > 0
+        and time_horizon_input > 0
+    )
+
+    submit_goal = st.button(
+        "➕ Add Goal Entry",
+        use_container_width=True,
+        disabled=not goal_form_valid,
+        key="submit_goal_btn",
+    )
+
+    if submit_goal:
+        new_goal = FinancialGoal(
+            name=goal_name_input.strip(),
+            target_amount=Decimal(str(target_amount_input)),
+            current_amount=Decimal(str(current_amount_input)),
+            time_horizon_months=int(time_horizon_input),
+            priority=int(priority_input),
+            category=category_input,
+        )
+
+        st.session_state.goals.append(new_goal)
+        st.session_state.pop("analysis_result", None)
+        for field_key in (
+            "new_goal_name",
+            "new_goal_target_amount",
+            "new_goal_current_amount",
+            "new_goal_time_horizon",
+            "new_goal_priority",
+            "new_goal_category",
+        ):
+            st.session_state.pop(field_key, None)
+        st.success(f"Added goal '{goal_name_input.strip()}' successfully!")
+        st.rerun()
+
+    if st.session_state.goals:
+        st.divider()
+        st.subheader(f"Active Financial Goals ({len(st.session_state.goals)})")
+        for idx, g in enumerate(st.session_state.goals):
+            g_info, g_btn = st.columns([5, 1])
+            progress_pct = min((float(g.current_amount) / float(g.target_amount)) * 100, 100) if g.target_amount > 0 else 0
+            with g_info:
+                st.markdown(
+                    f"**{idx + 1}. {g.name}** ({g.category or 'General'} | Priority {g.priority}) — "
+                    f"Target: **₹{g.target_amount:,.2f}** | Saved: **₹{g.current_amount:,.2f}** ({progress_pct:.1f}%) | "
+                    f"Horizon: **{g.time_horizon_months} months**"
+                )
+            with g_btn:
+                if st.button("Delete", key=f"del_goal_{idx}"):
+                    st.session_state.goals.pop(idx)
+                    st.session_state.pop("analysis_result", None)
+                    st.rerun()
+
+        if st.button("Clear All Goals"):
+            st.session_state.goals = []
+            st.session_state.pop("analysis_result", None)
+            st.rerun()
+
 # ── Analysis run ──────────────────────────────────────────
 
 if analyze:
@@ -434,7 +555,7 @@ if analyze:
 
             state = {
                 "transactions": transactions,
-                "goals": [],
+                "goals": st.session_state.get("goals", []),
                 "debts": st.session_state.get("debts", []),
                 "errors": [],
                 "llm_model": model,

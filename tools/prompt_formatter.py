@@ -49,18 +49,21 @@ def format_goal_analysis_for_prompt(goal_analysis: list[GoalAnalysis] | None) ->
     Format GoalAnalysis objects into clean, structured prompt text.
     """
     if not goal_analysis:
-        return "No goal data available."
+        return "No active goal data available."
 
     formatted_items = []
     for item in goal_analysis:
         g = item.goal
+        category_str = f" | Category: {g.category}" if g.category else ""
+        priority_str = f" | Priority: {g.priority}/5" if g.priority else ""
+
         line = (
             f"• {g.name} — Target: ₹{g.target_amount:,.2f} | Current Savings: ₹{g.current_amount:,.2f} "
-            f"({item.progress_percentage:.1f}% achieved)\n"
-            f"  - Required Monthly Saving: ₹{item.required_monthly_saving:,.2f}\n"
-            f"  - Time Horizon: {g.time_horizon_months} months\n"
-            f"  - Funding Gap: ₹{item.funding_gap:,.2f}\n"
-            f"  - Is Feasible with Surplus: {'Yes' if item.is_feasible else 'No'}"
+            f"({item.progress_percentage:.1f}% reached){category_str}{priority_str}\n"
+            f"  - Target Time Horizon: {g.time_horizon_months} months\n"
+            f"  - Required Monthly Saving: ₹{item.required_monthly_saving:,.2f}/mo\n"
+            f"  - Monthly Funding Gap: ₹{item.funding_gap:,.2f}\n"
+            f"  - Goal Feasibility: {'✅ Feasible' if item.is_feasible else '⚠️ Infeasible (required monthly saving exceeds available surplus)'}"
         )
         formatted_items.append(line)
 
