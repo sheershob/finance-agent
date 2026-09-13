@@ -13,6 +13,7 @@ from decimal import Decimal
 from schemas.transaction import TransactionBatch
 from schemas.analysis import FinancialAnalysis
 from schemas.debt import Debt
+from schemas.enums import ExpenseCategory, TransactionType
 from schemas.goal import FinancialGoal, GoalAnalysis
 
 from tools.expense_calculator import ExpenseCalculator
@@ -116,6 +117,7 @@ class FinancialAnalyzer:
             self._calculate_debt_to_income_ratio(
                 debts,
                 monthly_income,
+                transactions,
             )
         )
 
@@ -154,6 +156,7 @@ class FinancialAnalyzer:
         self,
         debts: list[Debt],
         monthly_income: Decimal,
+        transactions: TransactionBatch,
     ) -> Decimal:
 
         if monthly_income <= 0:
@@ -162,6 +165,18 @@ class FinancialAnalyzer:
         total_emi = self.debt_calculator.total_monthly_emi(
             debts
         )
+
+        csv_debt_payments = sum(
+            (
+                transaction.amount
+                for transaction in transactions.transactions
+                if transaction.transaction_type == TransactionType.DEBIT
+                and transaction.category == ExpenseCategory.DEBT
+            ),
+            Decimal("0"),
+        )
+
+        total_emi += csv_debt_payments
 
         ratio = (
             total_emi
@@ -213,11 +228,8 @@ class FinancialAnalyzer:
         """
 
         savings_score = self._savings_score(savings_rate)
-
         debt_score = self._debt_score(debt_to_income_ratio)
-
         emergency_score = self._emergency_fund_score(emergency_fund_months)
-
         goal_score = self._goal_score(goal_analysis)
 
         return min(

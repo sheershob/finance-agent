@@ -295,7 +295,10 @@ class CSVParser:
         )
 
         for category, keywords in self.CATEGORY_KEYWORDS.items():
-            if any(keyword in searchable_text for keyword in keywords):
+            if any(
+                keyword.casefold() in searchable_text
+                for keyword in keywords
+            ):
                 return category
 
         return ExpenseCategory.OTHER
