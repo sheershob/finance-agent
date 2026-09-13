@@ -1,7 +1,6 @@
 """
 Prompt template for the Report Agent.
 """
-
 from __future__ import annotations
 
 from schemas.analysis import FinancialAnalysis
@@ -52,30 +51,22 @@ Savings Rate:
 Debt-to-Income Ratio:
 {analysis.debt_to_income_ratio}%
 
-Emergency Fund:
-{analysis.emergency_fund_months} months
-
 Financial Health Score:
 {analysis.financial_health_score}/100
 
-Budget
-
+Budget:-
 {analysis.budget.to_prompt_string()}
 
 Goal Analysis
-
 {goal_str}
 
 Debt Analysis
-
 {debt_str}
 
 Expense Breakdown
-
 {breakdown_str}
 
 Top Spending Categories
-
 {top_cats_str}
 
 Generate a markdown report using the following sections.

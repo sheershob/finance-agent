@@ -56,30 +56,22 @@ Savings Rate:
 Debt-to-Income Ratio:
 {analysis.debt_to_income_ratio}%
 
-Emergency Fund:
-{analysis.emergency_fund_months} months
-
 Financial Health Score:
 {analysis.financial_health_score}/100
 
-Budget
-
+Budget:-
 {analysis.budget.to_prompt_string()}
 
 Debt Analysis
-
 {debt_str}
 
 Goal Analysis
-
 {goal_str}
 
 Expense Breakdown
-
 {breakdown_str}
 
 Top Spending Categories
-
 {top_cats_str}
 
 Generate between 6 and 10 recommendations.

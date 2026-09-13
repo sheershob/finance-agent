@@ -71,9 +71,6 @@ class MonthlyBudget(BaseModel):
     def to_prompt_string(self) -> str:
         """Return a human-readable budget summary for the prompt."""
         lines = [
-            "Monthly Income:",
-            f"₹{self.monthly_income}",
-            "",
             "Total Budget:",
             f"₹{self.total_budget}",
             "",
