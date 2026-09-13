@@ -7,7 +7,7 @@ An agentic AI financial planning application that analyzes transaction data, per
 - CSV transaction ingestion
 - Transaction validation and normalization
 - Deterministic financial analysis
-- Budget, and expense analysis
+- Budget, expense, debt, and goal analysis
 - LangGraph-based workflow orchestration
 - Recommendation Agent
 - Report Agent

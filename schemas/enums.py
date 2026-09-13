@@ -7,6 +7,9 @@ class TransactionType(str, Enum):
 
 
 class ExpenseCategory(str, Enum):
+    INCOME = "Income"
+    SAVINGS = "Savings"
+    DEBT = "Debt"
     HOUSING = "Housing"
     FOOD = "Food"
     TRANSPORTATION = "Transportation"

@@ -48,6 +48,98 @@ class CSVParser:
         "%d-%m-%y",
     )
 
+    CATEGORY_KEYWORDS = {
+        ExpenseCategory.INCOME: ("salary", "bonus", "income", "deposit"),
+        ExpenseCategory.SAVINGS: ("savings", "investment", "mutual fund", "stock", "shares"),
+        ExpenseCategory.DEBT: ("loan", "credit card", "debt", "repayment", "EMI", "car loan", "home loan"),
+        ExpenseCategory.HOUSING: ("rent", "mortgage", "housing", "property"),
+        ExpenseCategory.FOOD: (
+            "grocery",
+            "groceries",
+            "restaurant",
+            "cafe",
+            "coffee",
+            "food",
+            "swiggy",
+            "zomato",
+        ),
+        ExpenseCategory.TRANSPORTATION: (
+            "uber",
+            "ola",
+            "rapido",
+            "fuel",
+            "petrol",
+            "diesel",
+            "CNG",
+            "gas station",
+            "transport",
+            "metro",
+            "bus",
+            "train",
+            "cab",
+            "auto",
+            "taxi",
+        ),
+        ExpenseCategory.SHOPPING: (
+            "amazon",
+            "flipkart",
+            "shopping",
+            "retail",
+            "mall",
+        ),
+        ExpenseCategory.ENTERTAINMENT: (
+            "netflix",
+            "spotify",
+            "movie",
+            "cinema",
+            "entertainment",
+        ),
+        ExpenseCategory.UTILITIES: (
+            "electricity",
+            "water bill",
+            "gas bill",
+            "repair",
+            "internet",
+            "broadband",
+            "phone bill",
+            "mobile bill",
+            "utility",
+        ),
+        ExpenseCategory.HEALTHCARE: (
+            "hospital",
+            "doctor",
+            "pharmacy",
+            "medical",
+            "health",
+        ),
+        ExpenseCategory.EDUCATION: (
+            "school",
+            "college",
+            "university",
+            "course",
+            "tuition",
+            "education",
+        ),
+        ExpenseCategory.TRAVEL: (
+            "hotel",
+            "flight",
+            "airline",
+            "travel",
+            "booking.com",
+        ),
+        ExpenseCategory.INVESTMENTS: (
+            "investment",
+            "mutual fund",
+            "stock",
+            "shares",
+            "gold",
+            "silver",
+            "crypto",
+            "bitcoin",
+            "brokerage",
+        ),
+    }
+
     def parse(self,file_path: str | Path) -> TransactionBatch:
         """
         Parse a CSV file into a TransactionBatch.
@@ -89,12 +181,20 @@ class CSVParser:
                 transaction_type=self._parse_transaction_type(
                     row["type"]
                 ),
-                category=ExpenseCategory.OTHER,
                 merchant=self._optional_text(
                     row["merchant"] if "merchant" in dataframe.columns else None
                 ),
                 notes=self._optional_text(
                     row["notes"] if "notes" in dataframe.columns else None
+                ),
+                category=self._parse_category(
+                    row["category"] if "category" in dataframe.columns else None,
+                    description=str(row["description"]).strip(),
+                    merchant=(
+                        str(row["merchant"]).strip()
+                        if "merchant" in dataframe.columns and not pd.isna(row["merchant"])
+                        else None
+                    ),
                 ),
                 source_file=file_path.name,
             )
@@ -171,6 +271,34 @@ class CSVParser:
             )
 
         return mapping[value]
+
+    def _parse_category(
+        self,
+        value,
+        description: str,
+        merchant: str | None,
+    ) -> ExpenseCategory:
+
+        if value is not None and not pd.isna(value):
+            normalized = str(value).strip().casefold()
+
+            for category in ExpenseCategory:
+                if normalized == category.value.casefold():
+                    return category
+
+            return ExpenseCategory.OTHER
+
+        searchable_text = " ".join(
+            text.casefold()
+            for text in (description, merchant or "")
+            if text
+        )
+
+        for category, keywords in self.CATEGORY_KEYWORDS.items():
+            if any(keyword in searchable_text for keyword in keywords):
+                return category
+
+        return ExpenseCategory.OTHER
 
     def _optional_text(self, value) -> str | None:
         """Return optional CSV text without converting missing values to 'nan'."""
