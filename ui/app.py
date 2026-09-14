@@ -18,6 +18,18 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown(
+    """
+    <style>
+    /* Single-file uploader: hide the trailing "+" (it replaces the file, it does not add another). */
+    [data-testid="stFileUploader"] button[aria-label="Add files"] {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 @st.cache_resource
 def get_workflow():
     print("Building LangGraph workflow...", flush=True)
@@ -195,28 +207,7 @@ def render_report(
 # ─────────────────────────────────────────────────────────
 
 st.title("AI Financial Planning Assistant")
-
-st.markdown(
-    "Upload your transaction history and receive an AI-powered financial analysis."
-)
-
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-        text-align: center;
-    }
-    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] > div {
-        justify-content: center;
-    }
-    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
-        margin-left: auto;
-        margin-right: auto;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# st.markdown("Add optional debts and goals, then upload your transaction history to receive an AI-powered financial analysis.")
 
 # ── Sidebar ───────────────────────────────────────────────
 
@@ -248,33 +239,37 @@ with st.sidebar:
     )
     model = labeled_models[selected_model]
 
-    uploaded_file = st.file_uploader(
-        "Upload Transaction CSV",
-        type=["csv"],
-    )
+# ── Upload transactions (Main Page) ───────────────────────
 
-    if uploaded_file is not None:
-        uploaded_file_key = (uploaded_file.name, uploaded_file.size)
-        if st.session_state.get("uploaded_file_key") != uploaded_file_key:
-            st.session_state.uploaded_file_key = uploaded_file_key
-            st.session_state.pop("analysis_result", None)
+st.divider()
+st.subheader("Upload Transactions")
 
-    analyze = st.button(
-        "Analyze Finances",
-        use_container_width=True,
-        disabled=uploaded_file is None,
-    )
+uploaded_file = st.file_uploader(
+    "Required: date, description, amount, type.  Optional: category",
+    type=["csv"],
+    help="Required: date, description, amount, type. Optional: category.",
+)
 
-# ── Main ──────────────────────────────────────────────────
+if uploaded_file is not None:
+    uploaded_file_key = (uploaded_file.name, uploaded_file.size)
+    if st.session_state.get("uploaded_file_key") != uploaded_file_key:
+        st.session_state.uploaded_file_key = uploaded_file_key
+        st.session_state.pop("analysis_result", None)
 
-if uploaded_file is None:
-    st.info("Please upload a CSV file to begin.")
-    st.stop()
+analyze = st.button(
+    "Analyze Finances",
+    use_container_width=True,
+    disabled=uploaded_file is None,
+)
 
 upload_message = st.empty()
-if "analysis_result" not in st.session_state:
-    upload_message.success("CSV uploaded successfully!")
-print("CSV uploaded:", uploaded_file.name, flush=True)
+if uploaded_file is None:
+    # st.info("Add any optional debts or goals above, then upload a CSV to begin analysis.")
+    print("No CSV uploaded yet", flush=True)
+else:
+    if "analysis_result" not in st.session_state:
+        upload_message.success("CSV uploaded successfully!")
+    print("CSV uploaded:", uploaded_file.name, flush=True)
 
 # ── Optional Debt Information (Main Page) ─────────────────
 if "debts" not in st.session_state:
@@ -287,7 +282,7 @@ expander_title = (
     else "Optional: Add Debt / Loan Information"
 )
 
-with st.expander(expander_title, expanded=(debts_count > 0)):
+with st.expander(expander_title, expanded=False):
     st.markdown(
         "If you have any active loans or debts (e.g., Home Loan, Car Loan, Personal Loan), "
         "add them below."
@@ -408,7 +403,7 @@ goal_expander_title = (
     else "Optional: Add Financial Goals"
 )
 
-with st.expander(goal_expander_title, expanded=(goals_count > 0)):
+with st.expander(goal_expander_title, expanded=False):
     st.markdown(
         "If you have target financial goals (e.g., Buying a Car, House Down Payment), "
         "add them below."
@@ -519,7 +514,7 @@ with st.expander(goal_expander_title, expanded=(goals_count > 0)):
 
 # ── Analysis run ──────────────────────────────────────────
 
-if analyze:
+if analyze and uploaded_file is not None:
     print("Analyze button clicked", flush=True)
     st.session_state.pop("analysis_result", None)
 

@@ -57,7 +57,7 @@ Debt-to-Income Ratio:
 {analysis.debt_to_income_ratio}%
 
 Financial Health Score:
-{analysis.financial_health_score}/100
+{analysis.financial_health_score}%
 
 Budget:-
 {analysis.budget.to_prompt_string()}

@@ -38,7 +38,7 @@ class ReportAgent:
         print(f"  Savings Rate:            {analysis.savings_rate}%", flush=True)
         print(f"  Debt to Income Ratio:    {analysis.debt_to_income_ratio}%", flush=True)
         print(f"  Emergency Fund Months:   {analysis.emergency_fund_months}", flush=True)
-        print(f"  Financial Health Score:  {analysis.financial_health_score}/100", flush=True)
+        print(f"  Financial Health Score:  {analysis.financial_health_score}%", flush=True)
         print("=" * 70, flush=True)
 
         prompt = build_report_prompt(
