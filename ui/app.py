@@ -1,5 +1,6 @@
 import streamlit as st
 import tempfile
+import json
 from decimal import Decimal
 
 from agents.llm import OllamaConnectionError
@@ -164,6 +165,279 @@ def show_pipeline(placeholder, completed: int, active: int, error: bool = False)
 # ─────────────────────────────────────────────────────────
 # Render helpers
 # ─────────────────────────────────────────────────────────
+
+def render_expense_savings_chart(analysis) -> None:
+    """
+    Renders an interactive pie/doughnut chart for expense and savings breakdown
+    with smooth loading animation and dynamic hover effects using Chart.js.
+    """
+    if not analysis:
+        return
+
+    if isinstance(analysis, dict):
+        income = float(analysis.get("monthly_income", 0))
+        expenses = float(analysis.get("monthly_expenses", 0))
+        surplus = float(analysis.get("monthly_surplus", 0))
+        savings_rate = float(analysis.get("savings_rate", 0))
+        breakdown = analysis.get("expense_breakdown", [])
+    else:
+        income = float(analysis.monthly_income)
+        expenses = float(analysis.monthly_expenses)
+        surplus = float(analysis.monthly_surplus)
+        savings_rate = float(analysis.savings_rate)
+        breakdown = analysis.expense_breakdown
+
+    labels = []
+    values = []
+
+    if isinstance(breakdown, list):
+        for item in breakdown:
+            cat_name = getattr(item, "category", "")
+            if hasattr(cat_name, "value"):
+                cat_name = cat_name.value
+            cat_name = str(cat_name).replace("_", " ").title()
+            amt = float(getattr(item, "amount", 0))
+            if amt > 0:
+                labels.append(cat_name)
+                values.append(amt)
+    elif isinstance(breakdown, dict):
+        for cat_name, amt in breakdown.items():
+            amt = float(amt)
+            if amt > 0:
+                labels.append(str(cat_name).replace("_", " ").title())
+                values.append(amt)
+
+    if surplus > 0:
+        labels.append("Savings & Surplus")
+        values.append(surplus)
+
+    if not labels or sum(values) == 0:
+        return
+
+    sorted_slices = sorted(zip(values, labels), reverse=True)
+    values, labels = zip(*sorted_slices)
+    values = list(values)
+    labels = list(labels)
+
+    palette = [
+        "#38BDF8",  # Sky Blue
+        "#F59E0B",  # Amber
+        "#8B5CF6",  # Purple
+        "#EC4899",  # Pink
+        "#06B6D4",  # Cyan
+        "#F97316",  # Orange
+        "#A855F7",  # Violet
+        "#64748B",  # Slate
+    ]
+
+    colors = []
+    palette_idx = 0
+    for l in labels:
+        if "saving" in l.lower() or "surplus" in l.lower():
+            colors.append("#10B981")  # Emerald Green
+        else:
+            colors.append(palette[palette_idx % len(palette)])
+            palette_idx += 1
+
+    chart_data_json = json.dumps({
+        "labels": labels,
+        "values": values,
+        "colors": colors,
+    })
+
+    surplus_label = f"₹{surplus:,.2f}" if surplus >= 0 else f"-₹{abs(surplus):,.2f}"
+    surplus_sub = f"{savings_rate:.1f}% Savings Rate" if surplus >= 0 else "Deficit"
+    surplus_color = "#34d399" if surplus >= 0 else "#f87171"
+    expense_categories_count = sum(
+        1 for label in labels if label != "Savings & Surplus"
+    )
+
+    chart_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <style>
+        * {{
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }}
+        body {{
+          background: transparent;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          color: #f8fafc;
+          overflow: hidden;
+        }}
+        .chart-card {{
+          background: linear-gradient(145deg, #1e293b, #0f172a);
+          border: 1px solid #334155;
+          border-radius: 14px;
+          padding: 20px 24px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+          transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }}
+        .chart-card:hover {{
+          border-color: #38bdf8;
+          box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4), 0 0 15px rgba(56, 189, 248, 0.15);
+        }}
+        .header-title {{
+          font-size: 17px;
+          font-weight: 700;
+          color: #38bdf8;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+        }}
+        .metrics-grid {{
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 12px;
+          margin-bottom: 20px;
+        }}
+        .metric-box {{
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid #334155;
+          border-radius: 10px;
+          padding: 10px 14px;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }}
+        .metric-box:hover {{
+          border-color: #64748b;
+          background: rgba(30, 41, 59, 0.7);
+        }}
+        .metric-label {{
+          font-size: 11px;
+          font-weight: 600;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 4px;
+        }}
+        .metric-val {{
+          font-size: 16px;
+          font-weight: 700;
+          color: #f8fafc;
+        }}
+        .metric-sub {{
+          font-size: 11px;
+          color: #94a3b8;
+          margin-top: 2px;
+        }}
+        .chart-container {{
+          position: relative;
+          height: 270px;
+          width: 100%;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="chart-card">
+        <div class="header-title">
+          <span>📊 Expense & Savings Breakdown</span>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">Monthly Income</div>
+            <div class="metric-val">₹{income:,.2f}</div>
+            <div class="metric-sub">Total inflow</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Monthly Expenses</div>
+            <div class="metric-val" style="color: #f87171;">₹{expenses:,.2f}</div>
+            <div class="metric-sub">{expense_categories_count} categories</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Net Savings / Surplus</div>
+            <div class="metric-val" style="color: {surplus_color};">{surplus_label}</div>
+            <div class="metric-sub" style="color: {surplus_color};">{surplus_sub}</div>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="expenseChart"></canvas>
+        </div>
+      </div>
+
+      <script>
+        const chartData = {chart_data_json};
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+
+        new Chart(ctx, {{
+          type: 'doughnut',
+          data: {{
+            labels: chartData.labels,
+            datasets: [{{
+              data: chartData.values,
+              backgroundColor: chartData.colors,
+              borderColor: '#0f172a',
+              borderWidth: 2,
+              hoverBorderColor: '#38bdf8',
+              hoverBorderWidth: 3,
+              hoverOffset: 16
+            }}]
+          }},
+          options: {{
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {{
+              padding: 10
+            }},
+            animation: {{
+              animateRotate: true,
+              animateScale: true,
+              duration: 1200,
+              easing: 'easeOutQuart'
+            }},
+            plugins: {{
+              legend: {{
+                position: 'right',
+                labels: {{
+                  color: '#f8fafc',
+                  font: {{
+                    size: 12,
+                    family: "'Inter', sans-serif",
+                    weight: '500'
+                  }},
+                  padding: 12,
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                }}
+              }},
+              tooltip: {{
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#38bdf8',
+                titleFont: {{ size: 13, weight: '700', family: "'Inter', sans-serif" }},
+                bodyColor: '#f8fafc',
+                bodyFont: {{ size: 12, family: "'Inter', sans-serif" }},
+                borderColor: '#38bdf8',
+                borderWidth: 1,
+                padding: 12,
+                boxPadding: 6,
+                usePointStyle: true,
+                callbacks: {{
+                  label: function(context) {{
+                    const val = context.raw || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                    return ' ' + context.label + ': ₹' + val.toLocaleString('en-IN', {{minimumFractionDigits: 2, maximumFractionDigits: 2}}) + ' (' + pct + '%)';
+                  }}
+                }}
+              }}
+            }},
+            cutout: '52%'
+          }}
+        }});
+      </script>
+    </body>
+    </html>
+    """
+
+    st.components.v1.html(chart_html, height=440)
+
 
 def render_recommendations(
     recommendations: list[str] | None,
@@ -606,6 +880,7 @@ if current_page == "Results":
 
                 print("[4/6] Starting LangGraph…", flush=True)
 
+                chart_placeholder = st.empty()
                 recommendations_placeholder = st.empty()
                 report_placeholder = st.empty()
                 result = {}
@@ -616,6 +891,8 @@ if current_page == "Results":
 
                         if node_name == "analyze_finances":
                             show_pipeline(pipeline_ph, completed=4, active=4)
+                            with chart_placeholder.container():
+                                render_expense_savings_chart(node_result.get("financial_analysis"))
 
                         if node_name == "generate_recommendations":
                             with recommendations_placeholder.container():
@@ -664,6 +941,7 @@ if current_page == "Results":
             st.stop()
 
         st.session_state.analysis_result = {
+            "financial_analysis": analysis,
             "recommendations": recommendations,
             "recommendation_generation_seconds": recommendation_generation_seconds,
             "report": report,
@@ -679,6 +957,9 @@ if current_page == "Results":
         else:
             st.markdown("##### Pipeline")
             show_pipeline(st.empty(), completed=6, active=-1)
+
+            if completed_result.get("financial_analysis"):
+                render_expense_savings_chart(completed_result["financial_analysis"])
 
             if completed_result["report_missing"]:
                 st.warning("Analysis finished, but the report was not generated.")
